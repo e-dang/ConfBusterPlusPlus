@@ -11,15 +11,56 @@ from rdkit.Chem import AllChem
 
 import utils
 
+TMP_DIR = 'tmp'
+
+NewConformer = namedtuple('NewConformer', 'conformer energies rms ring_rms')
+
 
 class ConformerGenerator:
+    """
+    Class for generating macrocycle conformers. The algorithm implemented here is a direct RDKit adaptation of the
+    algorithm used in ConfBuster, although the underlying algorithm was also first described
+    else where.
+    """
 
     CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
+    MOL_FILE = os.path.join(TMP_DIR, 'conf_macrocycle.sdf')
+    GENETIC_FILE = os.path.join(TMP_DIR, 'genetic_results.sdf')
 
     def __init__(self, repeats=5, num_confs_genetic=50, num_confs_keep=5, force_field='MMFF94s',
                  score='energy', min_rmsd=0.5, energy_diff=5, max_iters=1000, ring_size=10, angle_granularity=5,
                  clash_threshold=0.9, distance_interval=[1.0, 2.5], seed=-1, num_embed_tries=5):
+        """
+        Initializer.
 
+        Args:
+            repeats (int, optional): The number of times the linear oligomer is subjected to random embedding, the
+                genetic algorithm, and subsequent rotamer search. Defaults to 5.
+            num_confs_genetic (int, optional): The number of conformers to generate using the genetic algorithm.
+                Defaults to 50.
+            num_confs_keep (int, optional): The number of conformers to accept before continuing during the rotamer
+                search. Defaults to 5.
+            force_field (str, optional): The force field to use for energy minimizations. Defaults to 'MMFF94s'.
+            score (str, optional): The score to use for the genetic algorithm. Defaults to 'energy'.
+            min_rmsd (float, optional): The minimum RMSD that two conformers must be apart in order for both to be kept.
+                Defaults to 0.5.
+            energy_diff (int, optional): The maximum energy difference between the lowest energy conformer and the
+                highest energy conformer in the final set of conformers. Defaults to 5.
+            max_iters (int, optional): The maximum number of iterations used for alignments and energy minimizations,
+                however more iterations are performed in the case of energy minimization if convergence is not reached
+                by the end of these iterations (see optimize_confs() for details). Defaults to 1000.
+            ring_size (int, optional): The ring size used to define a macrocycle. Defaults to 10.
+            angle_granularity (int, optional): The granularity with which dihedral angles are rotated during rotamer
+                optimization. Defaults to 5.
+            clash_threshold (float, optional): The threshold used to identify clashing atoms. Defaults to 0.9.
+            distance_interval (list, optional): The range of distances that the two atoms of the cleaved bond must be
+                brought to during rotamer optimization in order for that conformer to be accepted. Defaults to
+                [1.0, 2.5].
+            seed (int, optional): The seed to use for molecular embedding. Defaults to -1.
+            num_embed_tries (int, optional): The number of tries to perform embedding with. Defaults to 5.
+        """
+
+        # parameters
         self.repeats = repeats
         self.num_confs_genetic = num_confs_genetic
         self.num_confs_keep = num_confs_keep
@@ -35,23 +76,41 @@ class ConformerGenerator:
         self.seed = seed
         self.num_embed_tries = num_embed_tries
 
-    def conformation_search(self, macrocycle):
+        # data
+        self._cleavable_bonds = []
+        self._dihedrals = {'cleaved_and_Hs': [],
+                           'cleaved': [],
+                           'other': []
+                           }
+        self._ring_atoms = []
+        self._cleaved_atom1 = None
+        self._cleaved_atom2 = None
 
-        storage_mol = deepcopy(macrocycle)
-        cleavable_bonds = self.get_cleavable_bonds(macrocycle)
-        dihedrals = self.get_dihedral_atoms(macrocycle)
-        ring_atoms = self.get_ring_atoms(macrocycle)
-        storage_mol = Chem.AddHs(storage_mol)
+    def generate(self, macrocycle):
+        """
+        Top level function for initializing the conformational search process.
+
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule to perform conformational sampling on.
+
+        Returns:
+            NewConformer: A namedtuple containing the final set of conformers and their respective energies, RMSDs, and
+                ring RMSDs.
+        """
+
+        storage_mol = Chem.AddHs(macrocycle)
+        self._get_cleavable_bonds(macrocycle)
+        self._get_dihedral_atoms(macrocycle)
+        self._get_ring_atoms(macrocycle)
 
         # for each cleavable bond, perform algorithm
         opt_energies = {}
         min_energy = None
-        for bond in cleavable_bonds:
+        for bond in self._cleavable_bonds:
 
             # cleave the bond and update the dihedral list
-            linear_mol, cleaved_atom1, cleaved_atom2 = self.cleave_bond(macrocycle, bond)
-            linear_mol = Chem.AddHs(linear_mol)
-            new_dihedrals = self.update_dihedrals(linear_mol, dihedrals, cleaved_atom1, cleaved_atom2)
+            linear_mol = Chem.AddHs(self._cleave_bond(macrocycle, bond))
+            new_dihedrals = self._update_dihedrals(linear_mol)
 
             # use genetic algorithm to generate linear rotamers and optimize via force field then via dihedral rotations
             # and keep best results then repeat
@@ -59,63 +118,70 @@ class ConformerGenerator:
             for _ in range(self.repeats):
                 rotamers = deepcopy(linear_mol)
                 try:
-                    self.embed_molecule(rotamers)
-                    self.optimize_conformers(rotamers)
-                    rotamers = self.genetic_algorithm(rotamers)
-                    energies = self.optimize_conformers(rotamers)
-                    opt_linear_rotamers.extend(self.optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
-                                                                             new_dihedrals, cleaved_atom1,
-                                                                             cleaved_atom2))
-                except ValueError as err:
-                    return None
+                    self._embed_molecule(rotamers)
+                    self._optimize_conformers(rotamers)
+                    rotamers = self._genetic_algorithm(rotamers)
+                    energies = self._optimize_conformers(rotamers)
+                    opt_linear_rotamers.extend(self._optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
+                                                                              new_dihedrals))
+                except ValueError:
+                    print('enter')
 
             # add best resulting rotamers to mol
             for optimized_linear in opt_linear_rotamers:
                 linear_mol.AddConformer(optimized_linear, assignId=True)
 
             # reform bond
-            macro_mol = self.remake_bond(linear_mol, cleaved_atom1, cleaved_atom2)
+            macro_mol = self._remake_bond(linear_mol)
             macro_mol = Chem.AddHs(macro_mol, addCoords=True)
             try:
 
                 # optimize macrocycle and filter out conformers
-                energies = self.optimize_conformers(macro_mol)
-                self.filter_conformers(macro_mol, energies, bond_stereo=Chem.BondStereo.STEREOE)
-                mols = [self.genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
-                macro_mol = self.aggregate_conformers(mols)
-                energies = self.optimize_conformers(macro_mol)
+                energies = self._optimize_conformers(macro_mol)
+                self._filter_conformers(macro_mol, energies, bond_stereo=Chem.BondStereo.STEREOE)
+                mols = [self._genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
+                macro_mol = self._aggregate_conformers(mols)
+                energies = self._optimize_conformers(macro_mol)
 
                 # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
                 # optimum conformers
-                min_energy = self.get_lowest_energy(energies, min_energy)
-                self.evaluate_conformers(macro_mol, energies, storage_mol, opt_energies, min_energy)
+                min_energy = self._get_lowest_energy(energies, min_energy)
+                self._evaluate_conformers(macro_mol, energies, storage_mol, opt_energies, min_energy)
 
-            except IndexError as err:  # number of conformers after filtering is 0
+            except IndexError:  # number of conformers after filtering is 0
                 continue
-            except ValueError as err:
-                continue
+            except ValueError:
+                print('enter')
 
         # add conformers to opt_macrocycle in order of increasing energy
         energies, rms, ring_rms = [], [], []
-        opt_macrocycle = Chem.AddHs(Chem.Mol(macrocycle['binary']))
+        opt_macrocycle = Chem.AddHs(macrocycle)
         for conf_id, energy in sorted(opt_energies.items(), key=lambda x: x[1]):
             opt_macrocycle.AddConformer(storage_mol.GetConformer(conf_id), assignId=True)
             energies.append(energy)
 
         # align conformers
         AllChem.AlignMolConformers(opt_macrocycle, maxIters=self.max_iters, RMSlist=rms)
-        AllChem.AlignMolConformers(opt_macrocycle, maxIters=self.max_iters, atomIds=ring_atoms, RMSlist=ring_rms)
+        AllChem.AlignMolConformers(opt_macrocycle, maxIters=self.max_iters, atomIds=self._ring_atoms, RMSlist=ring_rms)
 
         # remove temporary files
-        self.cleanup()
-        return opt_macrocycle, energies, rms, ring_rms
+        self._cleanup()
+        return NewConformer(opt_macrocycle, energies, rms, ring_rms)
 
-    def get_cleavable_bonds(self, macrocycle, ring_size=10):
+    def _get_cleavable_bonds(self, macrocycle):
+        """
+        Helper function for generate() that finds all cleavable bonds in the macrocycle ring, where a cleavable bond is
+        any single bond not between double bonds and not attached to a chiral atom. Stores cleavable bonds in
+        self._cleaveable_bonds.
+
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule.
+        """
 
         # identify the macrocycle rings' bonds
         macro_ring, small_rings = set(), set()
         for ring in macrocycle.GetRingInfo().BondRings():
-            if len(ring) >= ring_size - 1:
+            if len(ring) >= self.ring_size - 1:
                 macro_ring = macro_ring.union(ring)
             else:
                 small_rings = small_rings.union(ring)
@@ -144,7 +210,6 @@ class ConformerGenerator:
                     break
 
         # find cleavable bonds
-        cleavable_bonds = []
         for bond in macro_ring:
             bond = macrocycle.GetBondWithIdx(bond)
             begin_atom = bond.GetBeginAtomIdx()
@@ -154,21 +219,23 @@ class ConformerGenerator:
                     and bond.GetIdx() not in between_doubles \
                     and begin_atom not in chiral_atoms \
                     and end_atom not in chiral_atoms:
-                cleavable_bonds.append(bond)
+                self._cleavable_bonds.append(bond)
 
-        return cleavable_bonds
+    def _get_dihedral_atoms(self, macrocycle):
+        """
+        Helper function of generate() that finds all dihedral angles within the macrocycle ring, where a dihedral is
+        defined by the patterns: 1-2-3?4 or 1?2-3-4 where ? is any bond type. The dihedrals are then stored in
+        self._dihedrals.
 
-    def get_dihedral_atoms(self, macrocycle, ring_size=10):
-
-        dihedrals = {'cleaved_and_Hs': [],
-                     'cleaved': [],
-                     'other': []
-                     }
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule.
+        """
 
         # get bonds in largest macrocycle ring
         macro_bonds = [list(ring) for ring in macrocycle.GetRingInfo().BondRings()
-                       if len(ring) >= ring_size - 1]  # bonds in ring = ring_size - 1
+                       if len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
         macro_bonds = sorted(macro_bonds, key=len, reverse=True)[0]
+
         # duplicate first two bonds in list to the end; defines all possible dihedrals
         macro_bonds.extend(macro_bonds[:2])
         small_rings = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) <= 6]
@@ -194,23 +261,37 @@ class ConformerGenerator:
                     dihedral = [bond1_begin.GetIdx(), bond1_end.GetIdx(), bond3_begin.GetIdx(), bond3_end.GetIdx()]
                 else:
                     dihedral = [bond1_begin.GetIdx(), bond1_end.GetIdx(), bond3_end.GetIdx(), bond3_begin.GetIdx()]
-                dihedrals['other'].append(dihedral)
 
-        return dihedrals
+                self._dihedrals['other'].append(dihedral)
 
-    def get_ring_atoms(self, macrocycle, ring_size=10):
-        ring_atoms = [ring for ring in macrocycle.GetRingInfo().AtomRings() if len(ring) >= ring_size -
-                      1]  # bonds in ring = ring_size - 1
-        return list(set().union(*ring_atoms))
+    def _get_ring_atoms(self, macrocycle):
+        """
+        Helper function of generate() that finds all atoms within the macrocyclic ring and stores them in
+        self._ring_atoms.
 
-    def get_alkenes(self, macrocycle):
-        double_bonds = [bond.GetIdx() for bond in macrocycle.GetBonds() if bond.GetBondType() == Chem.BondType.DOUBLE
-                        and bond.GetBeginAtom().GetSymbol() == bond.GetEndAtom().GetSymbol() == 'C']
-        return double_bonds[0]
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule.
+        """
 
-    def cleave_bond(self, mol, bond):
+        ring_atoms = [ring for ring in macrocycle.GetRingInfo().AtomRings() if
+                      len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
+        self._ring_atoms = list(set().union(*ring_atoms))
 
-        mol = Chem.RWMol(mol)
+    def _cleave_bond(self, macrocycle, bond):
+        """
+        Helper function of generate() that cleaves the specified bond within the macrocycle ring and adjusts valencies
+        appropriately with hydrogens. Also stores the indices of the cleaved atoms in self._cleaved_atom1 and
+        self._cleaved_atom2.
+
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule.
+            bond (RDKit Bond): The bond to be cleaved.
+
+        Returns:
+            RDKit Mol: The resulting linear oligomer.
+        """
+
+        mol = Chem.RWMol(macrocycle)
 
         # atom assignment must be done after conversion to RWMol
         cleaved_atom1 = mol.GetAtomWithIdx(bond.GetBeginAtomIdx())
@@ -223,14 +304,27 @@ class ConformerGenerator:
         cleaved_atom2.SetNumExplicitHs(1 + cleaved_atom2.GetTotalNumHs())
         Chem.SanitizeMol(mol)
 
-        return mol, cleaved_atom1.GetIdx(), cleaved_atom2.GetIdx()
+        self._cleaved_atom1 = cleaved_atom1.GetIdx()
+        self._cleaved_atom2 = cleaved_atom2.GetIdx()
 
-    def remake_bond(self, mol, cleaved_atom1, cleaved_atom2):
+        return mol
 
-        mol = Chem.RWMol(Chem.RemoveHs(mol, updateExplicitCount=True))
+    def _remake_bond(self, linear_mol):
+        """
+        Helper function of generate() that reforms the bond between the cleaved atoms and adjusts the valency
+        accordingly.
 
-        cleaved_atom1 = mol.GetAtomWithIdx(cleaved_atom1)
-        cleaved_atom2 = mol.GetAtomWithIdx(cleaved_atom2)
+        Args:
+            mol (RDKit Mol): The linear oligomer.
+
+        Returns:
+            RDKit Mol: The reformed macrocycle.
+        """
+
+        mol = Chem.RWMol(Chem.RemoveHs(linear_mol, updateExplicitCount=True))
+
+        cleaved_atom1 = mol.GetAtomWithIdx(self._cleaved_atom1)
+        cleaved_atom2 = mol.GetAtomWithIdx(self._cleaved_atom2)
 
         # reset hydrogen counts
         cleaved_atom1.SetNumExplicitHs(cleaved_atom1.GetTotalNumHs() - 1)
@@ -241,49 +335,59 @@ class ConformerGenerator:
 
         return mol
 
-    def update_dihedrals(self, linear_mol, dihedrals, cleaved_atom1, cleaved_atom2):
+    def _update_dihedrals(self, linear_mol):
+        """
+        Helper function of generate() that updates the dihedral angles of the macrocycle based on the bond that was
+        cleaved in order to form the linear oligomer.
 
-        new_dihedrals = deepcopy(dihedrals)
+        Args:
+            linear_mol (RDKit Mol): The linear oligomer.
+
+        Returns:
+            dict: Contains the different dihedrals which are indexed based on proximity to the cleaved atoms.
+        """
+
+        new_dihedrals = deepcopy(self._dihedrals)
 
         # find dihedrals that contain the bond that was cleaved and split that dihedral into two new lists that replaces
         # the opposite cleaved atom with one of the current cleaved atom's hydrogens
-        for dihedral in dihedrals['other']:
+        for dihedral in self._dihedrals['other']:
 
             # both cleaved atoms are in dihedral
-            if cleaved_atom1 in dihedral and cleaved_atom2 in dihedral:
+            if self._cleaved_atom1 in dihedral and self._cleaved_atom2 in dihedral:
                 new_dh = deepcopy(dihedral)
 
                 # cleaved_atom1 is a left terminal atom and cleaved_atom2 is a left central atom: ca1-ca2-x-x
-                if cleaved_atom1 == dihedral[0]:
-                    new_dh.remove(cleaved_atom1)
-                    for neighbor in linear_mol.GetAtomWithIdx(cleaved_atom2).GetNeighbors():
+                if self._cleaved_atom1 == dihedral[0]:
+                    new_dh.remove(self._cleaved_atom1)
+                    for neighbor in linear_mol.GetAtomWithIdx(self._cleaved_atom2).GetNeighbors():
                         if neighbor.GetSymbol() == 'H':
                             new_dh.insert(0, neighbor.GetIdx())
                             break
                     new_dihedrals['cleaved_and_Hs'].append(new_dh)
 
                 # cleaved_atom1 is a right terminal atom and cleaved_atom2 is a right central atom: x-x-ca2-ca1
-                elif cleaved_atom1 == dihedral[-1]:
-                    new_dh.remove(cleaved_atom1)
-                    for neighbor in linear_mol.GetAtomWithIdx(cleaved_atom2).GetNeighbors():
+                elif self._cleaved_atom1 == dihedral[-1]:
+                    new_dh.remove(self._cleaved_atom1)
+                    for neighbor in linear_mol.GetAtomWithIdx(self._cleaved_atom2).GetNeighbors():
                         if neighbor.GetSymbol() == 'H':
                             new_dh.append(neighbor.GetIdx())
                             break
                     new_dihedrals['cleaved_and_Hs'].append(new_dh)
 
                 # cleaved_atom2 is a left terminal atom and cleaved_atom1 is a left central atom: ca2-ca1-x-x
-                elif cleaved_atom2 == dihedral[0]:
-                    new_dh.remove(cleaved_atom2)
-                    for neighbor in linear_mol.GetAtomWithIdx(cleaved_atom1).GetNeighbors():
+                elif self._cleaved_atom2 == dihedral[0]:
+                    new_dh.remove(self._cleaved_atom2)
+                    for neighbor in linear_mol.GetAtomWithIdx(self._cleaved_atom1).GetNeighbors():
                         if neighbor.GetSymbol() == 'H':
                             new_dh.insert(0, neighbor.GetIdx())
                             break
                     new_dihedrals['cleaved_and_Hs'].append(new_dh)
 
                 # cleaved_atom2 is a right terminal atom and cleaved_atom1 is a right central atom: x-x-ca1-ca2
-                elif cleaved_atom2 == dihedral[-1]:
-                    new_dh.remove(cleaved_atom2)
-                    for neighbor in linear_mol.GetAtomWithIdx(cleaved_atom1).GetNeighbors():
+                elif self._cleaved_atom2 == dihedral[-1]:
+                    new_dh.remove(self._cleaved_atom2)
+                    for neighbor in linear_mol.GetAtomWithIdx(self._cleaved_atom1).GetNeighbors():
                         if neighbor.GetSymbol() == 'H':
                             new_dh.append(neighbor.GetIdx())
                             break
@@ -296,13 +400,23 @@ class ConformerGenerator:
                 new_dihedrals['other'].remove(dihedral)
 
             # only one cleaved atom in dihedral
-            elif cleaved_atom1 in dihedral or cleaved_atom2 in dihedral:
+            elif self._cleaved_atom1 in dihedral or self._cleaved_atom2 in dihedral:
                 new_dihedrals['cleaved'].append(dihedral)
                 new_dihedrals['other'].remove(dihedral)
 
         return new_dihedrals
 
-    def embed_molecule(self, mol):
+    def _embed_molecule(self, mol):
+        """
+        Gives the molecule intial 3D coordinates.
+
+        Args:
+            mol (RDKit Mol): The molecule to embed.
+
+        Raises:
+            exceptions.FailedEmbedding: Raised if embeding fails after a given number of tries.
+        """
+
         params = AllChem.ETKDGv2()
         params.numThreads = 0
         params.maxIterations = self.max_iters
@@ -319,7 +433,16 @@ class ConformerGenerator:
             if AllChem.EmbedMolecule(mol, maxAttempts=self.max_iters, useRandomCoords=True) < 0:
                 raise exceptions.FailedEmbedding
 
-    def optimize_conformers(self, mol):
+    def _optimize_conformers(self, mol):
+        """
+        Performs energy minimization of the given molecule, which must have been embedded first.
+
+        Args:
+            mol (RDKit Mol): The molecule to perform energy minimization on.
+
+        Returns:
+            list: A list of the energies, one for each conformer on the molecule.
+        """
 
         mol_props = AllChem.MMFFGetMoleculeProperties(mol)
         mol_props.SetMMFFVariant(self.force_field)
@@ -338,26 +461,46 @@ class ConformerGenerator:
 
         return list(map(lambda x: x.CalcEnergy(), force_fields))
 
-    def genetic_algorithm(self, mol, conf_id=0, num_confs=50, remove_Hs=False):
+    def _genetic_algorithm(self, mol, conf_id=0, num_confs=50, remove_Hs=False):
+        """
+        Calls OpenBabel's genetic algorithm for generating conformers using the provided scoring measure.
 
-        outputs = self._defaults['outputs']
-        mol_file, results_file = outputs['tmp_molecule'], outputs['tmp_genetic_results']
+        Args:
+            mol (RDKit Mol): The molecule to generate conformers for.
+            conf_id (int, optional): The conformer on the molecule to use as a seed. Defaults to 0.
+            num_confs (int, optional): The number of conformers to be generated. Defaults to 50.
+            remove_Hs (bool, optional): Whether to remove the hydrogens from the resulting conformers. Defaults to False.
+
+        Returns:
+            RDKit Mol: A molecule that has all the resulting conformers aggregated onto it.
+        """
 
         # assign unique file names so parallel processes dont touch other processes' files
-        ext_idx = mol_file.index('.')
-        mol_file = mol_file[:ext_idx] + str(os.getpid()) + mol_file[ext_idx:]
-        ext_idx = results_file.index('.')
-        results_file = results_file[:ext_idx] + str(os.getpid()) + results_file[ext_idx:]
+        ext_idx = self.MOL_FILE.index('.')
+        mol_file = self.MOL_FILE[:ext_idx] + str(os.getpid()) + self.MOL_FILE[ext_idx:]
+        ext_idx = self.GENETIC_FILE.index('.')
+        results_file = self.GENETIC_FILE[:ext_idx] + str(os.getpid()) + self.GENETIC_FILE[ext_idx:]
+
+        utils.write_mol(mol, mol_file, conf_id=conf_id)
 
         # perform genetic algorithm
         command = f'obabel {mol_file} -O {results_file} --conformer --nconf {num_confs} --score {self.score} \
                     --writeconformers &> /dev/null'
-        utils.write_mol(mol, mol_file, conf_id=conf_id)
         os.system(command)
-        return self.aggregate_conformers([mol for mol in Chem.SDMolSupplier(results_file,
-                                                                            removeHs=remove_Hs)])
 
-    def aggregate_conformers(self, mols):
+        return self._aggregate_conformers([mol for mol in Chem.SDMolSupplier(results_file, removeHs=remove_Hs)])
+
+    def _aggregate_conformers(self, mols):
+        """
+        Helper function of genetic_algorithm() that takes all the resulting conformers produced by the genetic algorithm
+        and aggregates them onto on molecule which is then passed back up to the called of genetic_algorithm().
+
+        Args:
+            mols (list): A list of RDKit Mols that are the result of the genetic algorithm.
+
+        Returns:
+            RDKit Mol: The molecule that holds all conformers.
+        """
 
         # get mol to add rest of conformers to
         mol = mols.pop()
@@ -368,7 +511,21 @@ class ConformerGenerator:
 
         return mol
 
-    def optimize_linear_rotamers(self, linear_mol, conf_id, dihedrals, cleaved_atom1, cleaved_atom2):
+    def _optimize_linear_rotamers(self, linear_mol, conf_id, dihedrals):
+        """
+        Helper function of generate() that generates combinations of dihedrals that are rotated together and determines
+        if the rotations have brought the cleaved atoms to within the distance thresholds. If so the dihedrals are kept
+        and further refinement on those dihedral angles are performed, where the best set of conformers resulting from
+        these manipulations are kept and returned to caller.
+
+        Args:
+            linear_mol (RDKit Mol): The linear oligomer.
+            conf_id (int): The conformer id of the conformer on the linear oligomer to optimize.
+            dihedrals (dict): The dict of dihedral angles that can be rotated on the linear oligomer.
+
+        Returns:
+            list: A list of RDKit Mols, each with an optimized conformer.
+        """
 
         mast_mol = deepcopy(linear_mol)
         mast_mol.RemoveAllConformers()
@@ -381,7 +538,7 @@ class ConformerGenerator:
         for dihedral1, dihedral2 in combinations(dihedrals['other'], 2):
             ini_dihedral1 = AllChem.GetDihedralDeg(linear_conf, dihedral1[0], dihedral1[1], dihedral1[2], dihedral1[3])
             ini_dihedral2 = AllChem.GetDihedralDeg(linear_conf, dihedral2[0], dihedral2[1], dihedral2[2], dihedral2[3])
-            dist = self.get_distance(linear_conf, cleaved_atom1, cleaved_atom2)
+            dist = self._get_distance(linear_conf, self._cleaved_atom1, self._cleaved_atom2)
             if self.distance_interval[0] < dist < self.distance_interval[1]:
                 distances.append([dist, ini_dihedral1, dihedral1, ini_dihedral2, dihedral2])
 
@@ -390,7 +547,7 @@ class ConformerGenerator:
                 AllChem.SetDihedralDeg(linear_conf, dihedral1[0], dihedral1[1], dihedral1[2], dihedral1[3], angle1)
                 while angle2 < 360:
                     AllChem.SetDihedralDeg(linear_conf, dihedral2[0], dihedral2[1], dihedral2[2], dihedral2[3], angle2)
-                    dist = self.get_distance(linear_conf, cleaved_atom1, cleaved_atom2)
+                    dist = self._get_distance(linear_conf, self._cleaved_atom1, self._cleaved_atom2)
                     if self.distance_interval[0] < dist < self.distance_interval[1]:
                         distances.append([dist, angle1, dihedral1, angle2, dihedral2])
                     angle2 += self.angle_granularity
@@ -420,8 +577,8 @@ class ConformerGenerator:
             if sum(matrix < self.clash_threshold) == 0:
 
                 # optimize dihedrals
-                self.optimize_dihedrals(linear_conf, dihedrals['cleaved'], cleaved_atom1, cleaved_atom2)
-                self.optimize_dihedrals(linear_conf, dihedrals['cleaved_and_Hs'], cleaved_atom1, cleaved_atom2)
+                self._optimize_dihedrals(linear_conf, dihedrals['cleaved'])
+                self._optimize_dihedrals(linear_conf, dihedrals['cleaved_and_Hs'])
 
                 for ref_conf in range(mast_mol.GetNumConformers()):
                     rms = AllChem.AlignMol(linear_mol_copy, mast_mol, conf_id, ref_conf, maxIters=self.max_iters)
@@ -437,28 +594,60 @@ class ConformerGenerator:
 
         return optimized_linear_confs
 
-    def optimize_dihedrals(self, conformer, dihedrals, cleaved_atom1, cleaved_atom2):
+    def _optimize_dihedrals(self, conformer, dihedrals):
+        """
+        Helper function of _optimize_linear_rotamers() that performs the further refinement of dihedral angles for the
+        set of dihedrals that brought the cleaved atoms to within the specified distance threshold.
+
+        Args:
+            conformer (RDKit Mol): An RDKit Mol that contains the candidate conformer as its only conformer.
+            dihedrals (list): The set of dihedrals that are used for further refinement.
+        """
 
         for dihedral in dihedrals:
-            best_dist = abs(self.get_distance(conformer, cleaved_atom1, cleaved_atom2) - self.CC_BOND_DIST)
+            best_dist = abs(self._get_distance(conformer, self._cleaved_atom1, self._cleaved_atom2) - self.CC_BOND_DIST)
             best_angle = AllChem.GetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3])
             angle = 0
             while angle < 360:
                 AllChem.SetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3], angle)
-                dist = self.get_distance(conformer, cleaved_atom1, cleaved_atom2)
+                dist = self._get_distance(conformer, self._cleaved_atom1, self._cleaved_atom2)
                 if abs(dist - self.CC_BOND_DIST) < best_dist:
                     best_dist = abs(dist - self.CC_BOND_DIST)
                     best_angle = angle
                 angle += self.angle_granularity
             AllChem.SetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3], best_angle)
 
-    def get_distance(self, mol, atom1, atom2):
+    def _get_distance(self, mol, atom1, atom2):
+        """
+        Helper function that gets the distance between two atoms on a given molecule.
+
+        Args:
+            mol (RDKit Mol): The molecule containing the two atoms.
+            atom1 (int): The index of the first atom on the molecule.
+            atom2 (int): The index if the second atom on the molecule.
+
+        Returns:
+            int: The distance between the two atoms.
+        """
 
         atom1_position = mol.GetAtomPosition(atom1)
         atom2_position = mol.GetAtomPosition(atom2)
         return atom1_position.Distance(atom2_position)
 
-    def evaluate_conformers(self, mol, energies, opt_mol, opt_energies, min_energy):
+    def _evaluate_conformers(self, mol, energies, opt_mol, opt_energies, min_energy):
+        """
+        Helper function of generate() that determines if the conformers on mol are accepted in the final set of
+        conformers or are rejected based on energy difference from the minimum energy conformer and whether conformers
+        are greater than the RMSD threshold apart from each other. In the latter case, if they are not, then the lowest
+        energy conformer out of the two is kept.
+
+        Args:
+            mol (RDKit Mol): The molecule containing the candidate conformers.
+            energies (list): The list of energies of the candidate conformers.
+            opt_mol (RDKit Mol): The molecule containing the final set of conformers.
+            opt_energies (list): The energies of the final set of conformers.
+            min_energy (int): The lowest energy in the final set of conformers.
+        """
 
         for i, macro_conf in enumerate(mol.GetConformers()):
 
@@ -491,12 +680,23 @@ class ConformerGenerator:
                     conf_id = opt_mol.AddConformer(macro_conf, assignId=True)
                     opt_energies[conf_id] = energies[i]
 
-    def filter_conformers(self, mol, energies, bond_stereo, min_energy=None):
+    def _filter_conformers(self, mol, energies, bond_stereo, min_energy=None):
+        """
+        Helper function of generate() that filters out conformers prior to being compared to the set of optimal
+        conformers. Filtering criteria is that double bond stereochemistry was retained and energies across conformers
+        are within the energy cutoff of the local set of conformers.
+
+        Args:
+            mol (RDKit Mol): The molecule containing the local set of conformers.
+            energies (list): The list of energies for these conformers.
+            bond_stereo (int): The bond stereochemistries that should be present on the macrocycle
+            min_energy (int, optional): The minimum energy. Defaults to None.
+        """
 
         remove_flag = False
-        min_energy = self.get_lowest_energy(energies, min_energy)
+        min_energy = self._get_lowest_energy(energies, min_energy)
         copy_mol = deepcopy(mol)
-        double_bond = self.get_alkenes(copy_mol)
+        double_bond = self._get_alkenes(copy_mol)
 
         for conf_id, energy in zip(range(mol.GetNumConformers()), deepcopy(energies)):
 
@@ -524,7 +724,17 @@ class ConformerGenerator:
             for i, conformer in enumerate(mol.GetConformers()):
                 conformer.SetId(i)
 
-    def get_lowest_energy(self, energies, min_energy=None):
+    def _get_lowest_energy(self, energies, min_energy=None):
+        """
+        Helper function that gets the lowest energy out of all the energies and updates the current minimum energy.
+
+        Args:
+            energies (list): A list of energies.
+            min_energy (int, optional): The current lowest energy. Defaults to None.
+
+        Returns:
+            int: The new lowest energy.
+        """
 
         try:
             candidate_energy = min(energies)
@@ -534,15 +744,30 @@ class ConformerGenerator:
 
         return min_energy
 
-    def cleanup(self):
+    def _get_alkenes(self, macrocycle):
+        """
+        Helper function that gets all alkenes present on the macrocycle.
 
-        outputs = ConformerGenerator._defaults['outputs']
-        mol_file, results_file = outputs['tmp_molecule'], outputs['tmp_genetic_results']
+        Args:
+            macrocycle (RDKit Mol): The macrocycle.
 
-        ext_idx = mol_file.index('.')
-        mol_file = mol_file[:ext_idx] + str(os.getpid()) + mol_file[ext_idx:]
-        ext_idx = results_file.index('.')
-        results_file = results_file[:ext_idx] + str(os.getpid()) + results_file[ext_idx:]
+        Returns:
+            int: The bond idx of the alkenes.
+        """
+
+        double_bonds = [bond.GetIdx() for bond in macrocycle.GetBonds() if bond.GetBondType() == Chem.BondType.DOUBLE
+                        and bond.GetBeginAtom().GetSymbol() == bond.GetEndAtom().GetSymbol() == 'C']
+        return double_bonds[0]
+
+    def _cleanup(self):
+        """
+        Helper function of generate() that cleans up any files created by the genetic algorithm.
+        """
+
+        ext_idx = self.MOL_FILE.index('.')
+        mol_file = self.MOL_FILE[:ext_idx] + str(os.getpid()) + self.MOL_FILE[ext_idx:]
+        ext_idx = self.GENETIC_FILE.index('.')
+        results_file = self.GENETIC_FILE[:ext_idx] + str(os.getpid()) + self.GENETIC_FILE[ext_idx:]
 
         for file in (mol_file, results_file):
             if os.path.exists(file):
