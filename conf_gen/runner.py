@@ -25,10 +25,12 @@ github - https://github.com/e-dang
 """
 
 import argparse
+import exceptions
 from time import time
 
 from rdkit import Chem
 
+import utils
 from conf_gen import ConformerGenerator
 
 
@@ -60,10 +62,17 @@ class Runner:
 
         generator = ConformerGenerator()
         for mol in mols:
-            start = time()
-            confs, energies, rmsd, ring_rmsd = generator.generate(mol)
-            finish = time() - start
-            Chem.MolToPDBFile(confs, pdb)
+            try:
+                start = time()
+                confs, energies, rmsd, ring_rmsd = generator.generate(mol)
+                finish = time() - start
+            except exceptions.FailedEmbedding as err:
+                print(err)
+                continue
+            except exceptions.InvalidMolecule as err:
+                print(err)
+                continue
+            Chem.MolToPDBFile(confs, utils.file_rotator(pdb))
             self._write_stats(energies, rmsd, ring_rmsd, finish, txt)
 
     def _parse_inputs(self):
@@ -149,7 +158,7 @@ class Runner:
             filepath (str): The file path to write the statistics to.
         """
 
-        with open(filepath, 'a') as file:
+        with open(utils.file_rotator(filepath), 'w') as file:
             file.write(f'Time: {finish} seconds\n')
             self._write_stat(energies, 'Energy', file)
             self._write_stat(rmsd, 'RMSD', file)
@@ -175,7 +184,8 @@ def main():
 
     parser.add_argument('--smiles', type=str, help='The SMILES string of the macrocycle.')
     parser.add_argument('--sdf', type=str, help='The filepath to the input file containing the macrocycles.')
-    parser.add_argument('--out', '-o', type=str, help='The .pdb output file path.')
+    parser.add_argument('--out', '-o', type=str, help='The .pdb output file path. If file exists, numbers will be '
+                        'appended to the file name to produce a unique file path.')
 
     args = parser.parse_args()
 

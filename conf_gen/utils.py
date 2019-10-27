@@ -24,6 +24,7 @@ SOFTWARE.
 github - https://github.com/e-dang
 """
 
+import os
 from itertools import islice
 
 from rdkit import Chem
@@ -74,3 +75,41 @@ def write_mol(mol, filepath, conf_id=None):
     writer.close()
 
     return True
+
+
+def file_rotator(filepath):
+    """
+    Checks if the given file exists, if it does, then continues to append larger and larger numbers to the base file
+    name until a unique file name is found.
+
+    Args:
+        filepath (str): The desired file name/path.
+
+    Returns:
+        str: The unique file name/path.
+    """
+
+    idx = 0
+    while True:
+        new_fp = attach_file_num(filepath, idx)
+        idx += 1
+        if not (os.path.exists(new_fp) and os.path.isfile(new_fp)):
+            return new_fp
+
+
+def attach_file_num(filepath, file_num):
+    """
+    Helper function that splits the file path on its extension, appends the given file number to the base file name, and
+    reassembles the file name and extension.
+
+    Args:
+        filepath (str): The desired file path.
+        file_num (iunt): The file number to attach to the file path's base file name.
+
+    Returns:
+        str: The file path with the file number appended to the base file name.
+    """
+
+    new_fp, ext = filepath.split('.')
+    new_fp += '_' + str(file_num) + '.' + ext
+    return new_fp
