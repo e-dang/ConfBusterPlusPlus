@@ -24,7 +24,6 @@ SOFTWARE.
 github - https://github.com/e-dang
 """
 
-import argparse
 import exceptions
 from time import time
 
@@ -66,11 +65,11 @@ class Runner:
                 start = time()
                 confs, energies, rmsd, ring_rmsd = generator.generate(mol)
                 finish = time() - start
-            except exceptions.FailedEmbedding as err:
-                print(err)
+            except exceptions.FailedEmbedding:
+                print(f'Failed to embed molecule: {Chem.MolToSmiles(mol)}\nMay need to change embedding parameters.')
                 continue
-            except exceptions.InvalidMolecule as err:
-                print(err)
+            except exceptions.InvalidMolecule:
+                print(f'Failed to find ring with at least {generator.ring_size} atoms.')
                 continue
             Chem.MolToPDBFile(confs, utils.file_rotator(pdb))
             self._write_stats(energies, rmsd, ring_rmsd, finish, txt)
@@ -177,20 +176,3 @@ class Runner:
         file.write(f'------------ {stat_name} ------------\n')
         for stat in stats:
             file.write(str(stat) + '\n')
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Perform conformational sampling on the given macrocycle.')
-
-    parser.add_argument('--smiles', type=str, help='The SMILES string of the macrocycle.')
-    parser.add_argument('--sdf', type=str, help='The filepath to the input file containing the macrocycles.')
-    parser.add_argument('--out', '-o', type=str, help='The .pdb output file path. If file exists, numbers will be '
-                        'appended to the file name to produce a unique file path.')
-
-    args = parser.parse_args()
-
-    runner = Runner(args)
-
-
-if __name__ == "__main__":
-    main()
