@@ -159,23 +159,24 @@ class Runner:
         """
 
         with open(utils.file_rotator(filepath), 'w') as file:
-            file.write(f'SMILES: {Chem.MolToSmiles(mol)}\n')
+            file.write(f'SMILES: {Chem.MolToSmiles(Chem.RemoveHs(mol))}\n')
             file.write(f'Number of Conformers: {mol.GetNumConformers()}\n')
             file.write(f'Time: {finish} seconds\n')
-            self._write_stat(energies, 'Energy', file)
-            self._write_stat(rmsd, 'RMSD', file)
-            self._write_stat(ring_rmsd, 'Ring_RMSD', file)
+            self._write_stat(energies, 'Energy', 'kcal/mol', file)
+            self._write_stat(rmsd, 'RMSD', 'Å', file)
+            self._write_stat(ring_rmsd, 'Ring_RMSD', 'Å', file)
 
-    def _write_stat(self, stats, stat_name, file):
+    def _write_stat(self, stats, stat_name, units, file):
         """
         Helper function that writes the given statistic in a certain format.
 
         Args:
             stats (list): The list of numbers that compose this statistic.
             stat_name (str): The name of the statistic.
+            units (str): The units that the statistic is measured in.
             file (file): The open file object to write to.
         """
 
-        file.write(f'------------ {stat_name} ------------\n')
+        file.write(f'------------ {stat_name} ({units}) ------------\n')
         for stat in stats:
             file.write(str(stat) + '\n')
