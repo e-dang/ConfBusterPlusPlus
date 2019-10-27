@@ -38,7 +38,7 @@ from rdkit.Chem import AllChem
 
 import utils
 
-TMP_DIR = 'tmp'
+TMP_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
 
 NewConformer = namedtuple('NewConformer', 'conformer energies rms ring_rms')
 
