@@ -1,3 +1,30 @@
+"""
+MIT License
+
+Copyright (c) 2019 e-dang
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+github - https://github.com/e-dang
+"""
+
+
 import exceptions
 import os
 from collections import namedtuple
@@ -19,8 +46,10 @@ NewConformer = namedtuple('NewConformer', 'conformer energies rms ring_rms')
 class ConformerGenerator:
     """
     Class for generating macrocycle conformers. The algorithm implemented here is a direct RDKit adaptation of the
-    algorithm used in ConfBuster, although the underlying algorithm was also first described
-    else where.
+    algorithm used in ConfBuster, although the underlying algorithm was first described by Jacobson et. al. for
+    predicting protein loop structure. See README for citations.
+
+    ConfBuster - https://confbuster.ibis.ulaval.ca/
     """
 
     CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
