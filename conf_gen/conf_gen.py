@@ -35,6 +35,7 @@ from time import time
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem import Draw
 
 import utils
 
@@ -128,10 +129,10 @@ class ConformerGenerator:
         """
 
         storage_mol = Chem.AddHs(macrocycle)
-        self._get_cleavable_bonds(macrocycle)
-        self._get_dihedral_atoms(macrocycle)
         self._get_ring_atoms(macrocycle)
         self._validate_macrocycle()
+        self._get_cleavable_bonds(macrocycle)
+        self._get_dihedral_atoms(macrocycle)
 
         # for each cleavable bond, perform algorithm
         opt_energies = {}
@@ -173,24 +174,23 @@ class ConformerGenerator:
                 # optimum conformers
                 min_energy = self._get_lowest_energy(energies, min_energy)
                 self._evaluate_conformers(macro_mol, energies, storage_mol, opt_energies, min_energy)
-
-            except IndexError:  # number of conformers after filtering is 0
+            except (IndexError, ValueError):  # number of conformers after filtering is 0
                 continue
 
         # add conformers to opt_macrocycle in order of increasing energy
-        energies, rms, ring_rms = [], [], []
-        opt_macrocycle = Chem.AddHs(macrocycle)
+        energies, rmsd, ring_rmsd = [], [], []
+        macrocycle = Chem.AddHs(macrocycle)
         for conf_id, energy in sorted(opt_energies.items(), key=lambda x: x[1]):
-            opt_macrocycle.AddConformer(storage_mol.GetConformer(conf_id), assignId=True)
+            macrocycle.AddConformer(storage_mol.GetConformer(conf_id), assignId=True)
             energies.append(energy)
 
         # align conformers
-        AllChem.AlignMolConformers(opt_macrocycle, maxIters=self.max_iters, RMSlist=rms)
-        AllChem.AlignMolConformers(opt_macrocycle, maxIters=self.max_iters, atomIds=self._ring_atoms, RMSlist=ring_rms)
+        AllChem.AlignMolConformers(macrocycle, maxIters=self.max_iters, RMSlist=rmsd)
+        AllChem.AlignMolConformers(macrocycle, maxIters=self.max_iters, atomIds=self._ring_atoms, RMSlist=ring_rmsd)
 
         # remove temporary files
         self._cleanup()
-        return NewConformer(opt_macrocycle, energies, rms, ring_rms)
+        return NewConformer(macrocycle, energies, rmsd, ring_rmsd)
 
     def _get_cleavable_bonds(self, macrocycle):
         """
@@ -688,21 +688,19 @@ class ConformerGenerator:
                     opt_mol.RemoveConformer(opt_conf.GetId())
                     continue
 
+                # find all confs that are within RMSD threshold of each other
                 rmsd = AllChem.AlignMol(mol, opt_mol, macro_conf.GetId(), opt_conf.GetId(), maxIters=self.max_iters)
                 if rmsd < self.min_rmsd:
                     similar_confs.append(opt_conf.GetId())
+
             similar_energies = [opt_energies[conf_id] for conf_id in similar_confs]
             similar_energies.append(energies[i])
-            try:
-                max_id = similar_confs[np.argmax(similar_energies)]
-                opt_mol.RemoveConformer(max_id)
+            if np.argmin(similar_energies) == len(similar_energies) - 1:
+                for conf_id in similar_confs:
+                    opt_mol.RemoveConformer(conf_id)
+                    del opt_energies[conf_id]
                 conf_id = opt_mol.AddConformer(macro_conf, assignId=True)
-                opt_mol.GetConformer(conf_id).SetId(max_id)
-                opt_energies[max_id] = energies[i]
-            except IndexError:
-                if len(similar_confs) == 0:
-                    conf_id = opt_mol.AddConformer(macro_conf, assignId=True)
-                    opt_energies[conf_id] = energies[i]
+                opt_energies[conf_id] = energies[i]
 
     def _filter_conformers(self, mol, energies, bond_stereo, min_energy=None):
         """
