@@ -72,7 +72,7 @@ class Runner:
                 print(f'Failed to find ring with at least {generator.ring_size} atoms.')
                 continue
             Chem.MolToPDBFile(confs, utils.file_rotator(pdb))
-            self._write_stats(energies, rmsd, ring_rmsd, finish, txt)
+            self._write_stats(confs, energies, rmsd, ring_rmsd, finish, txt)
 
     def _parse_inputs(self):
         """
@@ -145,11 +145,12 @@ class Runner:
         print(message)
         exit(code)
 
-    def _write_stats(self, energies, rmsd, ring_rmsd, finish, filepath):
+    def _write_stats(self, mol, energies, rmsd, ring_rmsd, finish, filepath):
         """
         Helper function that writes the run statistics to the provided .txt file.
 
         Args:
+            mol (RDKit Mol): The molecule used in the conformational sampling.
             energies (list): A list of the conformer energies (kcal/mol).
             rmsd (list): A list of RMSD values between each conformer and the lowest energy conformer (Å).
             ring_rmsd (list): A list of ring RMSD values between each conformer and the lowest energy conformer (Å).
@@ -158,6 +159,8 @@ class Runner:
         """
 
         with open(utils.file_rotator(filepath), 'w') as file:
+            file.write(f'SMILES: {Chem.MolToSmiles(mol)}\n')
+            file.write(f'Number of Conformers: {mol.GetNumConformers()}\n')
             file.write(f'Time: {finish} seconds\n')
             self._write_stat(energies, 'Energy', file)
             self._write_stat(rmsd, 'RMSD', file)
