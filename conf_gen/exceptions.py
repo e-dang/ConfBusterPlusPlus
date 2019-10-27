@@ -29,3 +29,10 @@ class FailedEmbedding(Exception):
     """
     Raised when RDKit fails to embed a molecule.
     """
+
+
+class InvalidMolecule(Exception):
+    """
+    Raised when there are no rings in the given molecule that are as big as the minimum ring size to be considered a
+    macrocycle.
+    """

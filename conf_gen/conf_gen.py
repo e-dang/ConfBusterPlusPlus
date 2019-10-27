@@ -131,6 +131,7 @@ class ConformerGenerator:
         self._get_cleavable_bonds(macrocycle)
         self._get_dihedral_atoms(macrocycle)
         self._get_ring_atoms(macrocycle)
+        self._validate_macrocycle()
 
         # for each cleavable bond, perform algorithm
         opt_energies = {}
@@ -146,15 +147,12 @@ class ConformerGenerator:
             opt_linear_rotamers = []
             for _ in range(self.repeats):
                 rotamers = deepcopy(linear_mol)
-                try:
-                    self._embed_molecule(rotamers)
-                    self._optimize_conformers(rotamers)
-                    rotamers = self._genetic_algorithm(rotamers)
-                    energies = self._optimize_conformers(rotamers)
-                    opt_linear_rotamers.extend(self._optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
-                                                                              new_dihedrals))
-                except ValueError:
-                    print('enter')
+                self._embed_molecule(rotamers)
+                self._optimize_conformers(rotamers)
+                rotamers = self._genetic_algorithm(rotamers)
+                energies = self._optimize_conformers(rotamers)
+                opt_linear_rotamers.extend(self._optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
+                                                                          new_dihedrals))
 
             # add best resulting rotamers to mol
             for optimized_linear in opt_linear_rotamers:
@@ -164,7 +162,6 @@ class ConformerGenerator:
             macro_mol = self._remake_bond(linear_mol)
             macro_mol = Chem.AddHs(macro_mol, addCoords=True)
             try:
-
                 # optimize macrocycle and filter out conformers
                 energies = self._optimize_conformers(macro_mol)
                 self._filter_conformers(macro_mol, energies, bond_stereo=Chem.BondStereo.STEREOE)
@@ -179,8 +176,6 @@ class ConformerGenerator:
 
             except IndexError:  # number of conformers after filtering is 0
                 continue
-            except ValueError:
-                print('enter')
 
         # add conformers to opt_macrocycle in order of increasing energy
         energies, rms, ring_rms = [], [], []
@@ -801,3 +796,12 @@ class ConformerGenerator:
         for file in (mol_file, results_file):
             if os.path.exists(file):
                 os.remove(file)
+
+    def _validate_macrocycle(self):
+        """
+        Helper function that ensures the supplied macrocycle has at least one ring with at least self.ring_size number
+        of atoms.
+        """
+
+        if len(self._ring_atoms) == 0:
+            raise exceptions.InvalidMolecule('No macrocyclic rings were found in the given molecule.')
