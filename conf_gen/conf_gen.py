@@ -148,6 +148,21 @@ class ConformerGenerator:
 
         return embed_params
 
+    def get_parameters(self):
+        """
+        Method for getting the parameters used to configure the specific instance of ConformerGenerator.
+
+        Returns:
+            dict: The member variables and their respective values.
+        """
+
+        member_vars = deepcopy(self.__dict__)
+        for key in member_vars.keys():
+            if key[0] == '_':  # private member variable
+                del member_vars[key]
+
+        return member_vars
+
     def generate(self, macrocycle):
         """
         Top level function for initializing the conformational search process.
@@ -545,15 +560,13 @@ class ConformerGenerator:
 
         return list(map(lambda x: x.CalcEnergy(), force_fields))
 
-    def _genetic_algorithm(self, mol, conf_id=0, remove_Hs=False):
+    def _genetic_algorithm(self, mol, conf_id=0):
         """
         Calls OpenBabel's genetic algorithm for generating conformers using the provided scoring measure.
 
         Args:
             mol (RDKit Mol): The molecule to generate conformers for.
             conf_id (int, optional): The conformer on the molecule to use as a seed. Defaults to 0.
-            num_confs (int, optional): The number of conformers to be generated. Defaults to 50.
-            remove_Hs (bool, optional): Whether to remove the hydrogens from the resulting conformers. Defaults to False.
 
         Returns:
             RDKit Mol: A molecule that has all the resulting conformers aggregated onto it.
@@ -570,7 +583,7 @@ class ConformerGenerator:
                     --score {self.score} --writeconformers &> /dev/null'
         os.system(command)
 
-        return self._aggregate_conformers([mol for mol in Chem.SDMolSupplier(results_file, removeHs=remove_Hs)])
+        return self._aggregate_conformers([mol for mol in Chem.SDMolSupplier(results_file, removeHs=False)])
 
     def _aggregate_conformers(self, mols):
         """
