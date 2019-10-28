@@ -29,7 +29,7 @@ import exceptions
 import os
 from collections import namedtuple
 from copy import deepcopy
-from itertools import combinations
+from itertools import combinations, chain
 from time import time
 
 import numpy as np
@@ -113,6 +113,9 @@ class ConformerGenerator:
                            'other': []
                            }
         self._ring_atoms = []
+        self._macro_ring_bonds = []
+        self._small_ring_bonds = set()
+        self._double_bonds = {}
         self._cleaved_atom1 = None
         self._cleaved_atom2 = None
 
@@ -131,6 +134,8 @@ class ConformerGenerator:
         storage_mol = Chem.AddHs(macrocycle)
         self._get_ring_atoms(macrocycle)
         self._validate_macrocycle()
+        self._get_ring_bonds(macrocycle)
+        self._get_double_bonds(macrocycle)
         self._get_cleavable_bonds(macrocycle)
         self._get_dihedral_atoms(macrocycle)
 
@@ -165,7 +170,7 @@ class ConformerGenerator:
             try:
                 # optimize macrocycle and filter out conformers
                 energies = self._optimize_conformers(macro_mol)
-                self._filter_conformers(macro_mol, energies, bond_stereo=Chem.BondStereo.STEREOE)
+                self._filter_conformers(macro_mol, energies)
                 mols = [self._genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
                 macro_mol = self._aggregate_conformers(mols)
                 energies = self._optimize_conformers(macro_mol)
@@ -203,12 +208,15 @@ class ConformerGenerator:
         """
 
         # identify the macrocycle rings' bonds
-        macro_ring, small_rings = set(), set()
-        for ring in macrocycle.GetRingInfo().BondRings():
-            if len(ring) >= self.ring_size - 1:
-                macro_ring = macro_ring.union(ring)
-            else:
-                small_rings = small_rings.union(ring)
+        # macro_ring, small_rings = set(), set()
+        # for ring in macrocycle.GetRingInfo().BondRings():
+        #     if len(ring) >= self.ring_size - 1:
+        #         macro_ring = macro_ring.union(ring)
+        #     else:
+        #         small_rings = small_rings.union(ring)
+        macro_ring = set()
+        for ring in self._macro_ring_bonds:
+            macro_ring = macro_ring.union(ring)
 
         # identify chiral atoms
         chiral_atoms = [idx for idx, stereo in Chem.FindMolChiralCenters(macrocycle)]
@@ -239,7 +247,7 @@ class ConformerGenerator:
             begin_atom = bond.GetBeginAtomIdx()
             end_atom = bond.GetEndAtomIdx()
             if bond.GetBondType() == Chem.BondType.SINGLE \
-                    and bond.GetIdx() not in small_rings \
+                    and bond.GetIdx() not in self._small_ring_bonds \
                     and bond.GetIdx() not in between_doubles \
                     and begin_atom not in chiral_atoms \
                     and end_atom not in chiral_atoms:
@@ -256,14 +264,16 @@ class ConformerGenerator:
         """
 
         # get bonds in largest macrocycle ring
-        macro_bonds = [list(ring) for ring in macrocycle.GetRingInfo().BondRings()
-                       if len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
-        macro_bonds = sorted(macro_bonds, key=len, reverse=True)[0]
+        # macro_bonds = [list(ring) for ring in macrocycle.GetRingInfo().BondRings()
+        #                if len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
+        # macro_bonds = sorted(macro_bonds, key=len, reverse=True)[0]
 
         # duplicate first two bonds in list to the end; defines all possible dihedrals
+        macro_bonds = self._macro_ring_bonds[0]
         macro_bonds.extend(macro_bonds[:2])
-        small_rings = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) <= 6]
-        small_rings = set().union(*small_rings)
+
+        # small_rings = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) <= self.SMALL_RING_SIZE]
+        # small_rings = set().union(*small_rings)
 
         # find dihedrals - defined by bond patterns 1-2-3?4 or 1?2-3-4 where ? is any bond type
         for bond1, bond2, bond3 in utils.window(macro_bonds, 3):
@@ -271,7 +281,7 @@ class ConformerGenerator:
             bond2 = macrocycle.GetBondWithIdx(bond2)
             bond3 = macrocycle.GetBondWithIdx(bond3)
             if bond2.GetBondType() == Chem.BondType.SINGLE \
-                    and bond2.GetIdx() not in small_rings \
+                    and bond2.GetIdx() not in self._small_ring_bonds \
                     and (bond1.GetBondType() == Chem.BondType.SINGLE or bond3.GetBondType() == Chem.BondType.SINGLE):
 
                 # get correct ordering of dihedral atoms
@@ -298,8 +308,39 @@ class ConformerGenerator:
         """
 
         ring_atoms = [ring for ring in macrocycle.GetRingInfo().AtomRings() if
-                      len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
+                      len(ring) >= self.ring_size]
         self._ring_atoms = list(set().union(*ring_atoms))
+
+    def _get_ring_bonds(self, macrocycle):
+        """
+        Helper function that finds all bonds within a ring and places those bonds that are in the macrocycle ring into
+        self._macro_ring_bonds and those that are in small rings in self._small_ring_bonds.
+
+        Args:
+            macrocycle (RDKit Mol): The macrocyclic molecule.
+        """
+
+        for ring in macrocycle.GetRingInfo().BondRings():
+            if len(ring) >= self.ring_size - 1:  # bonds in ring = ring_size - 1
+                self._macro_ring_bonds.append(list(ring))
+            else:
+                self._small_ring_bonds = self._small_ring_bonds.union(ring)
+
+    def _get_double_bonds(self, macrocycle):
+        """
+        Helper function that finds all double bonds in the macrocycle ring and stores them, along with their
+        stereochemistry into self._double_bonds.
+
+        Args:
+            macrocycle (RDKit Mol): The macrocycle molecule.
+        """
+
+        for bond_idx in chain.from_iterable(self._macro_ring_bonds):
+            bond = macrocycle.GetBondWithIdx(bond_idx)
+            if bond.GetBondType() == Chem.BondType.DOUBLE and not bond.GetIsAromatic():
+                self._double_bonds[bond_idx] = bond.GetStereo()
+
+        print(self._double_bonds)
 
     def _cleave_bond(self, macrocycle, bond):
         """
@@ -508,8 +549,8 @@ class ConformerGenerator:
         utils.write_mol(mol, mol_file, conf_id=conf_id)
 
         # perform genetic algorithm
-        command = f'obabel {mol_file} -O {results_file} --conformer --nconf {num_confs} --score {self.score} \
-                    --writeconformers &> /dev/null'
+        command = f'obabel {mol_file} -O {results_file} --conformer --nconf {self.num_confs_genetic} \
+                    --score {self.score} --writeconformers &> /dev/null'
         os.system(command)
 
         return self._aggregate_conformers([mol for mol in Chem.SDMolSupplier(results_file, removeHs=remove_Hs)])
@@ -702,7 +743,7 @@ class ConformerGenerator:
                 conf_id = opt_mol.AddConformer(macro_conf, assignId=True)
                 opt_energies[conf_id] = energies[i]
 
-    def _filter_conformers(self, mol, energies, bond_stereo, min_energy=None):
+    def _filter_conformers(self, mol, energies):
         """
         Helper function of generate() that filters out conformers prior to being compared to the set of optimal
         conformers. Filtering criteria is that double bond stereochemistry was retained and energies across conformers
@@ -716,30 +757,30 @@ class ConformerGenerator:
         """
 
         remove_flag = False
-        min_energy = self._get_lowest_energy(energies, min_energy)
+        min_energy = self._get_lowest_energy(energies)
         copy_mol = deepcopy(mol)
-        double_bond = self._get_alkenes(copy_mol)
 
         for conf_id, energy in zip(range(mol.GetNumConformers()), deepcopy(energies)):
 
-            # filter confs with wrong stereochemistry
+            # filter confs with wrong double bond stereochemistry
             copy_mol.RemoveAllConformers()
             Chem.RemoveStereochemistry(copy_mol)
             new_id = copy_mol.AddConformer(mol.GetConformer(conf_id))
             Chem.AssignStereochemistryFrom3D(copy_mol, confId=new_id, replaceExistingTags=True)
-            if copy_mol.GetBondWithIdx(double_bond).GetStereo() != bond_stereo:
-                mol.RemoveConformer(conf_id)
-                energies.remove(energy)
-                remove_flag = True
-                if energy == min_energy:
-                    min_energy = min(energies)
-                continue
-
-            # filter high energy confs
-            if energy > min_energy + self.energy_diff:
-                mol.RemoveConformer(conf_id)
-                energies.remove(energy)
-                remove_flag = True
+            for double_bond in self._double_bonds:
+                if copy_mol.GetBondWithIdx(double_bond).GetStereo() != self._double_bonds[double_bond]:
+                    mol.RemoveConformer(conf_id)
+                    energies.remove(energy)
+                    remove_flag = True
+                    if energy == min_energy:
+                        min_energy = min(energies)
+                    break
+            else:
+                # filter high energy confs
+                if energy > min_energy + self.energy_diff:
+                    mol.RemoveConformer(conf_id)
+                    energies.remove(energy)
+                    remove_flag = True
 
         # reset conf_ids if conformers have been filtered out
         if remove_flag:
@@ -765,21 +806,6 @@ class ConformerGenerator:
             return candidate_energy
 
         return min_energy
-
-    def _get_alkenes(self, macrocycle):
-        """
-        Helper function that gets all alkenes present on the macrocycle.
-
-        Args:
-            macrocycle (RDKit Mol): The macrocycle.
-
-        Returns:
-            int: The bond idx of the alkenes.
-        """
-
-        double_bonds = [bond.GetIdx() for bond in macrocycle.GetBonds() if bond.GetBondType() == Chem.BondType.DOUBLE
-                        and bond.GetBeginAtom().GetSymbol() == bond.GetEndAtom().GetSymbol() == 'C']
-        return double_bonds[0]
 
     def _cleanup(self):
         """
