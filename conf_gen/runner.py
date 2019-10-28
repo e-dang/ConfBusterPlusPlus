@@ -69,10 +69,11 @@ class Runner:
                 print(f'Failed to embed molecule: {Chem.MolToSmiles(mol)}\nMay need to change embedding parameters.')
                 continue
             except exceptions.InvalidMolecule:
-                print(f'Failed to find ring with at least {generator.ring_size} atoms.')
+                print(f'Failed to find ring with at least {generator.MIN_MACRO_RING_SIZE} atoms.')
                 continue
+
             Chem.MolToPDBFile(confs, utils.file_rotator(pdb))
-            self._write_stats(confs, energies, rmsd, ring_rmsd, finish, txt)
+            self._write_stats(confs, energies, rmsd, ring_rmsd, finish, generator.get_parameters(), txt)
 
     def _parse_inputs(self):
         """
@@ -145,7 +146,7 @@ class Runner:
         print(message)
         exit(code)
 
-    def _write_stats(self, mol, energies, rmsd, ring_rmsd, finish, filepath):
+    def _write_stats(self, mol, energies, rmsd, ring_rmsd, finish, params, filepath):
         """
         Helper function that writes the run statistics to the provided .txt file.
 
@@ -165,6 +166,7 @@ class Runner:
             self._write_stat(energies, 'Energy', 'kcal/mol', file)
             self._write_stat(rmsd, 'RMSD', 'Å', file)
             self._write_stat(ring_rmsd, 'Ring_RMSD', 'Å', file)
+            self._write_params(params, file)
 
     def _write_stat(self, stats, stat_name, units, file):
         """
@@ -180,3 +182,17 @@ class Runner:
         file.write(f'------------ {stat_name} ({units}) ------------\n')
         for stat in stats:
             file.write(str(stat) + '\n')
+
+    def _write_params(self, params, file):
+        """
+        Helper function that writes the parameters of the ConformerGenerator that were used for generating the set of
+        conformers.
+
+        Args:
+            params (dict): A dictionary containing the set of parameters and their values.
+            file (file): The open file object to write to.
+        """
+
+        file.write('------------ Parameter List ------------')
+        for key, value in params.items():
+            file.write(f'{key} : {value}\n')
