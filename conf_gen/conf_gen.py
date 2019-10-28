@@ -532,10 +532,8 @@ class ConformerGenerator:
         """
 
         # assign unique file names so parallel processes dont touch other processes' files
-        ext_idx = self.MOL_FILE.index('.')
-        mol_file = self.MOL_FILE[:ext_idx] + str(os.getpid()) + self.MOL_FILE[ext_idx:]
-        ext_idx = self.GENETIC_FILE.index('.')
-        results_file = self.GENETIC_FILE[:ext_idx] + str(os.getpid()) + self.GENETIC_FILE[ext_idx:]
+        mol_file = utils.attach_file_num(self.MOL_FILE, str(os.getpid()))
+        results_file = utils.attach_file_num(self.GENETIC_FILE, str(os.getpid()))
 
         utils.write_mol(mol, mol_file, conf_id=conf_id)
 
@@ -802,10 +800,8 @@ class ConformerGenerator:
         Helper function of generate() that cleans up any files created by the genetic algorithm.
         """
 
-        ext_idx = self.MOL_FILE.index('.')
-        mol_file = self.MOL_FILE[:ext_idx] + str(os.getpid()) + self.MOL_FILE[ext_idx:]
-        ext_idx = self.GENETIC_FILE.index('.')
-        results_file = self.GENETIC_FILE[:ext_idx] + str(os.getpid()) + self.GENETIC_FILE[ext_idx:]
+        mol_file = utils.attach_file_num(self.MOL_FILE, str(os.getpid()))
+        results_file = utils.attach_file_num(self.GENETIC_FILE, str(os.getpid()))
 
         for file in (mol_file, results_file):
             if os.path.exists(file):
