@@ -29,13 +29,12 @@ import exceptions
 import os
 from collections import namedtuple
 from copy import deepcopy
-from itertools import combinations, chain
+from itertools import chain, combinations
 from time import time
 
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from rdkit.Chem import Draw
 
 import utils
 
@@ -115,7 +114,6 @@ class ConformerGenerator:
         self._ring_atoms = []
         self._macro_ring_bonds = []
         self._small_ring_bonds = set()
-        self._double_bonds = {}
         self._cleaved_atom1 = None
         self._cleaved_atom2 = None
 
@@ -135,7 +133,6 @@ class ConformerGenerator:
         self._get_ring_atoms(macrocycle)
         self._validate_macrocycle()
         self._get_ring_bonds(macrocycle)
-        self._get_double_bonds(macrocycle)
         self._get_cleavable_bonds(macrocycle)
         self._get_dihedral_atoms(macrocycle)
 
@@ -173,14 +170,18 @@ class ConformerGenerator:
                 self._filter_conformers(macro_mol, energies)
                 mols = [self._genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
                 macro_mol = self._aggregate_conformers(mols)
-                energies = self._optimize_conformers(macro_mol)
-
-                # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
-                # optimum conformers
-                min_energy = self._get_lowest_energy(energies, min_energy)
-                self._evaluate_conformers(macro_mol, energies, storage_mol, opt_energies, min_energy)
+                self._filter_conformers(macro_mol, np.ones(macro_mol.GetNumConformers()))
+                new_mol = Chem.AddHs(macrocycle)
+                for conf in macro_mol.GetConformers():
+                    new_mol.AddConformer(conf, assignId=True)
+                energies = self._optimize_conformers(new_mol)
             except (IndexError, ValueError):  # number of conformers after filtering is 0
                 continue
+
+            # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
+            # optimum conformers
+            min_energy = self._get_lowest_energy(energies, min_energy)
+            self._evaluate_conformers(new_mol, energies, storage_mol, opt_energies, min_energy)
 
         # add conformers to opt_macrocycle in order of increasing energy
         energies, rmsd, ring_rmsd = [], [], []
@@ -207,13 +208,6 @@ class ConformerGenerator:
             macrocycle (RDKit Mol): The macrocyclic molecule.
         """
 
-        # identify the macrocycle rings' bonds
-        # macro_ring, small_rings = set(), set()
-        # for ring in macrocycle.GetRingInfo().BondRings():
-        #     if len(ring) >= self.ring_size - 1:
-        #         macro_ring = macro_ring.union(ring)
-        #     else:
-        #         small_rings = small_rings.union(ring)
         macro_ring = set()
         for ring in self._macro_ring_bonds:
             macro_ring = macro_ring.union(ring)
@@ -263,17 +257,9 @@ class ConformerGenerator:
             macrocycle (RDKit Mol): The macrocyclic molecule.
         """
 
-        # get bonds in largest macrocycle ring
-        # macro_bonds = [list(ring) for ring in macrocycle.GetRingInfo().BondRings()
-        #                if len(ring) >= self.ring_size - 1]  # bonds in ring = ring_size - 1
-        # macro_bonds = sorted(macro_bonds, key=len, reverse=True)[0]
-
         # duplicate first two bonds in list to the end; defines all possible dihedrals
         macro_bonds = self._macro_ring_bonds[0]
         macro_bonds.extend(macro_bonds[:2])
-
-        # small_rings = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) <= self.SMALL_RING_SIZE]
-        # small_rings = set().union(*small_rings)
 
         # find dihedrals - defined by bond patterns 1-2-3?4 or 1?2-3-4 where ? is any bond type
         for bond1, bond2, bond3 in utils.window(macro_bonds, 3):
@@ -328,19 +314,24 @@ class ConformerGenerator:
 
     def _get_double_bonds(self, macrocycle):
         """
-        Helper function that finds all double bonds in the macrocycle ring and stores them, along with their
-        stereochemistry into self._double_bonds.
+        Helper function that finds all double bonds in the macrocyclic rings and stores them along with their
+        stereochemistry.
 
         Args:
             macrocycle (RDKit Mol): The macrocycle molecule.
+
+        Returns:
+            dict: A dictionary containing double bond indices and stereochemistrys as key, values pairs respectively.
         """
 
-        for bond_idx in chain.from_iterable(self._macro_ring_bonds):
+        double_bonds = {}
+        ring_bonds = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) >= self.ring_size - 1]
+        for bond_idx in chain.from_iterable(ring_bonds):
             bond = macrocycle.GetBondWithIdx(bond_idx)
             if bond.GetBondType() == Chem.BondType.DOUBLE and not bond.GetIsAromatic():
-                self._double_bonds[bond_idx] = bond.GetStereo()
+                double_bonds[bond_idx] = bond.GetStereo()
 
-        print(self._double_bonds)
+        return double_bonds
 
     def _cleave_bond(self, macrocycle, bond):
         """
@@ -526,7 +517,7 @@ class ConformerGenerator:
 
         return list(map(lambda x: x.CalcEnergy(), force_fields))
 
-    def _genetic_algorithm(self, mol, conf_id=0, num_confs=50, remove_Hs=False):
+    def _genetic_algorithm(self, mol, conf_id=0, remove_Hs=False):
         """
         Calls OpenBabel's genetic algorithm for generating conformers using the provided scoring measure.
 
@@ -752,13 +743,12 @@ class ConformerGenerator:
         Args:
             mol (RDKit Mol): The molecule containing the local set of conformers.
             energies (list): The list of energies for these conformers.
-            bond_stereo (int): The bond stereochemistries that should be present on the macrocycle
-            min_energy (int, optional): The minimum energy. Defaults to None.
         """
 
         remove_flag = False
         min_energy = self._get_lowest_energy(energies)
         copy_mol = deepcopy(mol)
+        double_bonds = self._get_double_bonds(mol)  # VERY IMPORTANT TO FIND DOUBLE BONDS HERE. DO NOT REMOVE.
 
         for conf_id, energy in zip(range(mol.GetNumConformers()), deepcopy(energies)):
 
@@ -767,8 +757,8 @@ class ConformerGenerator:
             Chem.RemoveStereochemistry(copy_mol)
             new_id = copy_mol.AddConformer(mol.GetConformer(conf_id))
             Chem.AssignStereochemistryFrom3D(copy_mol, confId=new_id, replaceExistingTags=True)
-            for double_bond in self._double_bonds:
-                if copy_mol.GetBondWithIdx(double_bond).GetStereo() != self._double_bonds[double_bond]:
+            for double_bond, stereo in double_bonds.items():
+                if copy_mol.GetBondWithIdx(double_bond).GetStereo() != stereo:
                     mol.RemoveConformer(conf_id)
                     energies.remove(energy)
                     remove_flag = True
