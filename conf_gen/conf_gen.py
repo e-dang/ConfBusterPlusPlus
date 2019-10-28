@@ -53,57 +53,67 @@ class ConformerGenerator:
     """
 
     CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
+    MIN_MACRO_RING_SIZE = 10  # minimum number of atoms in ring to be considered a macrocycle
+    EXTRA_ITERS = 50  # number of extra iterations to perform at a time for non-converged energy minimizations
     MOL_FILE = os.path.join(TMP_DIR, 'conf_macrocycle.sdf')
     GENETIC_FILE = os.path.join(TMP_DIR, 'genetic_results.sdf')
 
-    def __init__(self, repeats=5, num_confs_genetic=50, num_confs_keep=5, force_field='MMFF94s',
-                 score='energy', min_rmsd=0.5, energy_diff=5, max_iters=1000, ring_size=10, angle_granularity=5,
-                 clash_threshold=0.9, distance_interval=[1.0, 2.5], seed=-1, num_embed_tries=5):
+    def __init__(self, repeats_per_cut=5, num_confs_genetic=50, num_confs_rotamer_search=5, force_field='MMFF94s',
+                 score='energy', min_rmsd=0.5, energy_diff=5, embed_params=None, small_angle_gran=5,
+                 large_angle_gran=15, clash_threshold=0.9, distance_interval=[1.0, 2.5], num_threads=0, max_iters=1000,
+                 num_embed_tries=5):
         """
         Initializer.
 
         Args:
-            repeats (int, optional): The number of times the linear oligomer is subjected to random embedding, the
-                genetic algorithm, and subsequent rotamer search. Defaults to 5.
+            repeats_per_cut (int, optional): The number of times the linear oligomer is subjected to random embedding,
+                the genetic algorithm, and subsequent rotamer search. Defaults to 5.
             num_confs_genetic (int, optional): The number of conformers to generate using the genetic algorithm.
                 Defaults to 50.
-            num_confs_keep (int, optional): The number of conformers to accept before continuing during the rotamer
-                search. Defaults to 5.
+            num_confs_rotamer_search (int, optional): The number of conformers to accept before continuing during the
+                rotamer search. Defaults to 5.
             force_field (str, optional): The force field to use for energy minimizations. Defaults to 'MMFF94s'.
             score (str, optional): The score to use for the genetic algorithm. Defaults to 'energy'.
             min_rmsd (float, optional): The minimum RMSD that two conformers must be apart in order for both to be kept.
                 Defaults to 0.5.
             energy_diff (int, optional): The maximum energy difference between the lowest energy conformer and the
                 highest energy conformer in the final set of conformers. Defaults to 5.
-            max_iters (int, optional): The maximum number of iterations used for alignments and energy minimizations,
-                however more iterations are performed in the case of energy minimization if convergence is not reached
-                by the end of these iterations (see optimize_confs() for details). Defaults to 1000.
+            embed_params (RDKit EmbedParameters, optional): The parameters to use when embedding the molecules. If None,
+                then the default ETKDGv2() parameters are used with the number of threads set to num_threads, the
+                maximum number of iterations equal to max_iters, and the seed equal to time().
             ring_size (int, optional): The ring size used to define a macrocycle. Defaults to 10.
-            angle_granularity (int, optional): The granularity with which dihedral angles are rotated during rotamer
-                optimization. Defaults to 5.
+            small_angle_gran (int, optional): The granularity with which dihedral angles are rotated during the fine
+                grained portion of rotamer optimization. Defaults to 5.
+            large_angle_gran (int, optional): The granularity with which dihedral angles are rotated during the coarse
+                grained portion of rotamer optimization. Defaults to 15.
             clash_threshold (float, optional): The threshold used to identify clashing atoms. Defaults to 0.9.
             distance_interval (list, optional): The range of distances that the two atoms of the cleaved bond must be
                 brought to during rotamer optimization in order for that conformer to be accepted. Defaults to
                 [1.0, 2.5].
-            seed (int, optional): The seed to use for molecular embedding. Defaults to -1.
+            num_threads (int, optional): The number of threads to use when embedding and doing global energy
+                minimizations. If set to 0, the maximum threads supported by the computer is used. Defaults to 0.
+            max_iters (int, optional): The maximum number of iterations used for alignments and energy minimizations,
+                however more iterations are performed in the case of energy minimization if convergence is not reached
+                by the end of these iterations (see optimize_confs() for details). Defaults to 1000.
             num_embed_tries (int, optional): The number of tries to perform embedding with. Defaults to 5.
         """
 
         # parameters
-        self.repeats = repeats
+        self.repeats_per_cut = repeats_per_cut
         self.num_confs_genetic = num_confs_genetic
-        self.num_confs_keep = num_confs_keep
+        self.num_confs_rotamer_search = num_confs_rotamer_search
         self.force_field = force_field
         self.score = score
         self.min_rmsd = min_rmsd
         self.energy_diff = energy_diff
-        self.max_iters = max_iters
-        self.ring_size = ring_size
-        self.angle_granularity = angle_granularity
+        self.small_angle_gran = small_angle_gran
+        self.large_angle_gran = large_angle_gran
         self.clash_threshold = clash_threshold
         self.distance_interval = distance_interval
-        self.seed = seed
+        self.num_threads = num_threads
+        self.max_iters = max_iters
         self.num_embed_tries = num_embed_tries
+        self.embed_params = self._create_embed_params(embed_params)
 
         # data
         self._cleavable_bonds = []
@@ -116,6 +126,27 @@ class ConformerGenerator:
         self._small_ring_bonds = set()
         self._cleaved_atom1 = None
         self._cleaved_atom2 = None
+
+    def _create_embed_params(self, embed_params):
+        """
+        Helper function that creates emebedding parameters if none are supplied on initialization. Defaults to ETKDGv2()
+        with the number of threads equal to self.num_threads, the maximum iterations equal to self.max_iters, and the
+        random seed equal to time().
+
+        Args:
+            embed_params (RDKit EmbedParameters): The parameters to use for embedding.
+
+        Returns:
+            RDKit EmbedParameters: The parameters to use for embedding.
+        """
+
+        if embed_params is None:
+            embed_params = AllChem.ETKDGv2()
+            embed_params.numThreads = self.num_threads
+            embed_params.maxIterations = self.max_iters
+            embed_params.randomSeed = int(time())
+
+        return embed_params
 
     def generate(self, macrocycle):
         """
@@ -148,7 +179,7 @@ class ConformerGenerator:
             # use genetic algorithm to generate linear rotamers and optimize via force field then via dihedral rotations
             # and keep best results then repeat
             opt_linear_rotamers = []
-            for _ in range(self.repeats):
+            for _ in range(self.repeats_per_cut):
                 rotamers = deepcopy(linear_mol)
                 self._embed_molecule(rotamers)
                 self._optimize_conformers(rotamers)
@@ -294,7 +325,7 @@ class ConformerGenerator:
         """
 
         ring_atoms = [ring for ring in macrocycle.GetRingInfo().AtomRings() if
-                      len(ring) >= self.ring_size]
+                      len(ring) >= self.MIN_MACRO_RING_SIZE]
         self._ring_atoms = list(set().union(*ring_atoms))
 
     def _get_ring_bonds(self, macrocycle):
@@ -307,7 +338,7 @@ class ConformerGenerator:
         """
 
         for ring in macrocycle.GetRingInfo().BondRings():
-            if len(ring) >= self.ring_size - 1:  # bonds in ring = ring_size - 1
+            if len(ring) >= self.MIN_MACRO_RING_SIZE - 1:  # bonds in ring = ring_size - 1
                 self._macro_ring_bonds.append(list(ring))
             else:
                 self._small_ring_bonds = self._small_ring_bonds.union(ring)
@@ -325,7 +356,8 @@ class ConformerGenerator:
         """
 
         double_bonds = {}
-        ring_bonds = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) >= self.ring_size - 1]
+        ring_bonds = [ring for ring in macrocycle.GetRingInfo().BondRings() if len(ring) >=
+                      self.MIN_MACRO_RING_SIZE - 1]
         for bond_idx in chain.from_iterable(ring_bonds):
             bond = macrocycle.GetBondWithIdx(bond_idx)
             if bond.GetBondType() == Chem.BondType.DOUBLE and not bond.GetIsAromatic():
@@ -473,18 +505,13 @@ class ConformerGenerator:
             exceptions.FailedEmbedding: Raised if embeding fails after a given number of tries.
         """
 
-        params = AllChem.ETKDGv2()
-        params.numThreads = 0
-        params.maxIterations = self.max_iters
-        params.randomSeed = int(time()) if self.seed == -1 else self.seed
-
         Chem.FindMolChiralCenters(mol)  # assigns bond stereo chemistry when other functions wouldn't
         Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
 
         for _ in range(self.num_embed_tries):
-            if AllChem.EmbedMolecule(mol, params=params) >= 0:
+            if AllChem.EmbedMolecule(mol, params=self.embed_params) >= 0:
                 break
-            params.randomSeed = int(time()) if self.seed == -1 else self.seed
+            self.embed_params.randomSeed = int(time())  # find new seed because last seed wasnt able to embed molecule
         else:
             if AllChem.EmbedMolecule(mol, maxAttempts=self.max_iters, useRandomCoords=True) < 0:
                 raise exceptions.FailedEmbedding
@@ -506,13 +533,14 @@ class ConformerGenerator:
             mol, mol_props, confId=x, ignoreInterfragInteractions=False), range(mol.GetNumConformers())))
 
         convergence, energy = zip(*AllChem.MMFFOptimizeMoleculeConfs(mol, mmffVariant=self.force_field,
-                                                                     maxIters=self.max_iters, numThreads=0,
+                                                                     maxIters=self.max_iters,
+                                                                     numThreads=self.num_threads,
                                                                      ignoreInterfragInteractions=False))
         convergence = list(convergence)
         energy = list(energy)
         for non_converged_id in np.flatnonzero(convergence):
             while not convergence[non_converged_id]:
-                convergence[non_converged_id] = force_fields[non_converged_id].Minimize(50)
+                convergence[non_converged_id] = force_fields[non_converged_id].Minimize(self.EXTRA_ITERS)
                 energy[non_converged_id] = force_fields[non_converged_id].CalcEnergy()
 
         return list(map(lambda x: x.CalcEnergy(), force_fields))
@@ -604,8 +632,8 @@ class ConformerGenerator:
                     dist = self._get_distance(linear_conf, self._cleaved_atom1, self._cleaved_atom2)
                     if self.distance_interval[0] < dist < self.distance_interval[1]:
                         distances.append([dist, angle1, dihedral1, angle2, dihedral2])
-                    angle2 += self.angle_granularity
-                angle1 += self.angle_granularity
+                    angle2 += self.large_angle_gran
+                angle1 += self.large_angle_gran
 
             # reset dihedrals
             AllChem.SetDihedralDeg(linear_conf, dihedral1[0], dihedral1[1], dihedral1[2], dihedral1[3], ini_dihedral1)
@@ -643,7 +671,7 @@ class ConformerGenerator:
                     mast_mol.AddConformer(linear_conf, assignId=True)
 
                 # return when num_confs valid conformers has been obtained
-                if len(optimized_linear_confs) == self.num_confs_keep:
+                if len(optimized_linear_confs) == self.num_confs_rotamer_search:
                     break
 
         return optimized_linear_confs
@@ -668,7 +696,7 @@ class ConformerGenerator:
                 if abs(dist - self.CC_BOND_DIST) < best_dist:
                     best_dist = abs(dist - self.CC_BOND_DIST)
                     best_angle = angle
-                angle += self.angle_granularity
+                angle += self.small_angle_gran
             AllChem.SetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3], best_angle)
 
     def _get_distance(self, mol, atom1, atom2):
@@ -809,8 +837,8 @@ class ConformerGenerator:
 
     def _validate_macrocycle(self):
         """
-        Helper function that ensures the supplied macrocycle has at least one ring with at least self.ring_size number
-        of atoms.
+        Helper function that ensures the supplied macrocycle has at least one ring with at least
+        self.MIN_MACRO_RING_SIZE number of atoms.
         """
 
         if len(self._ring_atoms) == 0:
