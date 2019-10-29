@@ -15,6 +15,7 @@ Note that within the __conf_gen__ directory there is a __tmp__ directory where f
 ## Dependencies
 - Python3.6.8 or newer
 - RDKit 2019.03.2<sup>[2]</sup>
+- OpenBabel 2.4.1<sup>[3]</sup>
 
 ## Installation
 ```
@@ -40,3 +41,4 @@ python path/to/conf_gen --smiles <SMILES string> -e 5 -o path/to/output_file.pdb
 - [1] Barbeau, Xavier, et al. “ConfBuster: Open-Source Tools for Macrocycle Conformational Search and Analysis.” Journal
 of Open Research Software, vol. 6, 2018, doi:10.5334/jors.189.
 - [2] Landrum G. RDKit: Open-source cheminformatics; http://rdkit.org.
+- [3] http://openbabel.org/wiki/Main_Page
