@@ -1,0 +1,84 @@
+SMILES: O=C(O)C[C@H]1Cc2c[nH]c3c(csc3c2=O)C/C=C/c2cccc(c2)CCC(=O)NC[C@H](CCCc2n[nH]c(=O)n3cncc23)C(=O)N[C@@H](CCc2nc3cscc3[nH]2)CC(=O)N1
+Number of Conformers: 14
+Time: 1022.3242037296295 seconds
+------------------------------ Energy (kcal/mol) -------------------------------
+15.17757589900494
+16.856998777930137
+16.86409665361834
+17.54060445574083
+17.64344933735338
+17.662220597542223
+17.759257048544576
+18.361143697752006
+18.48034266733844
+18.811519023017343
+19.11586202713813
+19.497668583529723
+19.50550694828353
+20.029292822259787
+Average: 18.093252752789528
+Standard Deviation: 1.2491066074955974
+----------------------------------- RMSD (Å) -----------------------------------
+5.454459827812182
+1.2033004916350498
+2.040205593160113
+5.675980274697753
+5.57725022670623
+5.090725513622729
+5.4699322294610795
+6.013015154776647
+5.704051001946317
+1.920532298266542
+1.1179456957626281
+1.5029851953015816
+4.92783365949071
+Average: 3.976785935587659
+Standard Deviation: 1.943434353169832
+-------------------------------- Ring_RMSD (Å) ---------------------------------
+2.6968160258836615
+0.027484716813275183
+0.07682229212026179
+2.6055492109812493
+2.6446473063915996
+2.7979799417367137
+2.6410649671518667
+2.594647753904673
+2.574280963140717
+0.04080860577044715
+0.07255080099626839
+0.025240350596306485
+2.5212866918367576
+Average: 1.6399368944095227
+Standard Deviation: 1.2596671894474498
+-------------------------------- Parameter List --------------------------------
+'repeats_per_cut': 5,
+ 'num_confs_genetic': 50,
+ 'num_confs_rotamer_search': 5,
+ 'force_field': 'MMFF94s',
+ 'score': 'energy',
+ 'min_rmsd': 0.5,
+ 'energy_diff': 5.0,
+ 'small_angle_gran': 5,
+ 'large_angle_gran': 15,
+ 'clash_threshold': 0.9,
+ 'distance_interval': [1.0, 2.5],
+ 'num_threads': 0,
+ 'max_iters': 1000,
+ 'num_embed_tries': 5,
+ 'embed_params': 'ETversion': 2,
+                  'boxSizeMult': 2.0,
+                  'clearConfs': True,
+                  'enforceChirality': True,
+                  'ignoreSmoothingFailures': False,
+                  'maxIterations': 1000,
+                  'numThreads': 0,
+                  'numZeroFail': 1,
+                  'onlyHeavyAtomsForRMS': True,
+                  'optimizerForceTol': 0.001,
+                  'pruneRmsThresh': -1.0,
+                  'randNegEig': True,
+                  'randomSeed': 1572327938,
+                  'useBasicKnowledge': True,
+                  'useExpTorsionAnglePrefs': True,
+                  'useRandomCoords': False,
+                  'verbose': False
