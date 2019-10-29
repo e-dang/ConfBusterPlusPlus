@@ -153,6 +153,7 @@ class Runner:
         self._validate_num_confs_rotamer_search()
         self._validate_force_field()
         self._validate_score()
+        self._validate_rmsd()
         self._validate_energy_diff()
         self._validate_angle_gran()
         self._validate_clash_threshold()
