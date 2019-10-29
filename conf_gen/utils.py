@@ -26,6 +26,7 @@ github - https://github.com/e-dang
 
 import os
 from itertools import islice
+from pprint import PrettyPrinter, pprint
 
 from rdkit import Chem
 
@@ -113,3 +114,40 @@ def attach_file_num(filepath, file_num):
     new_fp, ext = filepath.split('.')
     new_fp += '_' + str(file_num) + '.' + ext
     return new_fp
+
+
+def list_embed_params(embed_params):
+    """
+    Creates a dictionary filled with the embedding parameter's attribute names and their respective values.
+
+    Args:
+        embed_params (RDKit EmbedParameters): The embedding parameters.
+
+    Returns:
+        dict: Contains all embedding parameter's attributes and their respective values.
+    """
+
+    attributes = {}
+    for name in dir(embed_params):
+        if '__' not in name:  # not a python related attribute
+            attributes[name] = getattr(embed_params, name)
+
+    return attributes
+
+
+def _pprint_dict(self, object, stream, indent, allowance, context, level):
+    """
+    Patch function for pprint that stops pprint from sorting the object before printing it. All arguments are the same
+    as in the original function pprint.
+    """
+
+    write = stream.write
+    if self._indent_per_level > 1:
+        write((self._indent_per_level - 1) * ' ')
+    length = len(object)
+    if length:
+        self._format_dict_items(object.items(), stream, indent, allowance + 1,
+                                context, level)
+
+
+PrettyPrinter._dispatch[dict.__repr__] = _pprint_dict  # apply the patch function to pprint
