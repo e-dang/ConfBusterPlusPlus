@@ -236,6 +236,7 @@ class ConformerGenerator:
             # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
             # optimum conformers
             min_energy = self._get_lowest_energy(energies, min_energy)
+            Chem.SanitizeMol(new_mol)
             self._evaluate_conformers(new_mol, energies, storage_mol, opt_energies, min_energy)
 
         # add conformers to opt_macrocycle in order of increasing energy
@@ -768,7 +769,6 @@ class ConformerGenerator:
                     opt_mol.RemoveConformer(opt_conf.GetId())
                     continue
 
-                # find all confs that are within RMSD threshold of each other
                 rmsd = AllChem.AlignMol(mol, opt_mol, macro_conf.GetId(), opt_conf.GetId(), maxIters=self.max_iters)
                 if rmsd < self.min_rmsd:
                     similar_confs.append(opt_conf.GetId())
