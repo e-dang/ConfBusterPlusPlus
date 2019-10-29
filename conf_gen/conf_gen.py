@@ -126,6 +126,13 @@ class ConformerGenerator:
         self._cleaved_atom1 = None
         self._cleaved_atom2 = None
 
+    def __del__(self):
+        """
+        Destructor. Cleans up temporary files in case of premature termination.
+        """
+
+        self._cleanup()
+
     def _create_embed_params(self, embed_params):
         """
         Helper function that creates emebedding parameters if none are supplied on initialization. Defaults to ETKDGv2()
