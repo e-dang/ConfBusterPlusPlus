@@ -119,7 +119,8 @@ class Runner:
         self._validate_outputs()
 
         self.output_pdb = self.args.out
-        self.output_txt = os.path.splitext(os.path.basename(self.args.out))[0] + '.txt'
+        self.output_txt = os.path.join(os.path.split(self.args.out)[0],
+                                       os.path.splitext(os.path.basename(self.args.out))[0] + '.txt')
 
     def _validate_outputs(self):
         """
