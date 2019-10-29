@@ -214,6 +214,21 @@ class Runner:
         if self.args.score:
             self.params['score'] = self.args.score
 
+    def _validate_rmsd(self):
+        """
+        Ensures that the min_rmsd is greater than or equal to 0, and prints a warning if the value is high, then fills
+        self.params with the specified value.
+        """
+
+        if self.args.min_rmsd:
+            if self.args.min_rmsd < 0:
+                self._terminate('Error. The argument min_rmsd must be greater than or equal to 0.', 2)
+            elif self.args.min_rmsd > 1:
+                print('Warning - the higher the value of min_rmsd the less conformers you are likely to end up with. '
+                      f'Current value is {self.args.min_rmsd}.')
+
+            self.params['min_rmsd'] = self.args.min_rmsd
+
     def _validate_energy_diff(self):
         """
         Ensures energy_diff is greater than 0, and prints a warning about possibility of decreased number of conformers

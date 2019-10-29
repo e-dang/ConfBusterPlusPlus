@@ -50,15 +50,17 @@ def main():
                         'for energy minimizations. Defaults to MMFF94s.')
     parser.add_argument('--score', '-s', type=str, choices=['energy', 'rmsd'], help='The score to use for the genetic '
                         'algorithm. Defaults to energy.')
-    parser.add_argument('--energy_diff', '-e', type=int, help='The maximum energy difference between the lowest energy '
+    parser.add_argument('--min_rmsd', '--rmsd', type=float, help='The minimum RMSD that two conformers must be apart in '
+                        'order for both to be kept. Defaults to 0.5.')
+    parser.add_argument('--energy_diff', '-e', type=float, help='The maximum energy difference between the lowest energy '
                         'conformer and the highest energy conformer in the final set of conformers. Defaults to 10.')
     parser.add_argument('--small_angle_gran', type=int, help='The granularity with which dihedral angles are rotated '
                         'during the fine grained portion of rotamer optimization. Defaults to 5.')
     parser.add_argument('--large_angle_gran', type=int, help='The granularity with which dihedral angles are rotated '
                         'during the coarse grained portion of rotamer optimization. Defaults to 15.')
-    parser.add_argument('--clash_threshold', '-c', type=int, help='The threshold used to identify clashing atoms. '
+    parser.add_argument('--clash_threshold', '-c', type=float, help='The threshold used to identify clashing atoms. '
                         'Defaults to 0.9.')
-    parser.add_argument('--distance_interval', '-d', type=int, nargs=2, help='The range of distances that the two atoms'
+    parser.add_argument('--distance_interval', '-d', type=float, nargs=2, help='The range of distances that the two atoms'
                         ' of the cleaved bond must be brought to during rotamer optimization in order for that'
                         ' conformer to be accepted. Defaults to 1.0 - 2.5')
     parser.add_argument('--num_threads', '-t', type=int, help='The number of threads to use when embedding and doing '
