@@ -59,7 +59,7 @@ class ConformerGenerator:
     GENETIC_FILE = os.path.join(TMP_DIR, 'genetic_results.sdf')
 
     def __init__(self, repeats_per_cut=5, num_confs_genetic=50, num_confs_rotamer_search=5, force_field='MMFF94s',
-                 score='energy', min_rmsd=0.5, energy_diff=5, embed_params=None, small_angle_gran=5,
+                 score='energy', min_rmsd=0.5, energy_diff=10, embed_params=None, small_angle_gran=5,
                  large_angle_gran=15, clash_threshold=0.9, distance_interval=[1.0, 2.5], num_threads=0, max_iters=1000,
                  num_embed_tries=5):
         """
@@ -70,18 +70,17 @@ class ConformerGenerator:
                 the genetic algorithm, and subsequent rotamer search. Defaults to 5.
             num_confs_genetic (int, optional): The number of conformers to generate using the genetic algorithm.
                 Defaults to 50.
-            num_confs_rotamer_search (int, optional): The number of conformers to accept before continuing during the
-                rotamer search. Defaults to 5.
+            num_confs_rotamer_search (int, optional): The maximum number of conformers to accept during the rotamer
+                search. Defaults to 5.
             force_field (str, optional): The force field to use for energy minimizations. Defaults to 'MMFF94s'.
             score (str, optional): The score to use for the genetic algorithm. Defaults to 'energy'.
             min_rmsd (float, optional): The minimum RMSD that two conformers must be apart in order for both to be kept.
                 Defaults to 0.5.
             energy_diff (int, optional): The maximum energy difference between the lowest energy conformer and the
-                highest energy conformer in the final set of conformers. Defaults to 5.
+                highest energy conformer in the final set of conformers. Defaults to 10.
             embed_params (RDKit EmbedParameters, optional): The parameters to use when embedding the molecules. If None,
                 then the default ETKDGv2() parameters are used with the number of threads set to num_threads, the
                 maximum number of iterations equal to max_iters, and the seed equal to time().
-            ring_size (int, optional): The ring size used to define a macrocycle. Defaults to 10.
             small_angle_gran (int, optional): The granularity with which dihedral angles are rotated during the fine
                 grained portion of rotamer optimization. Defaults to 5.
             large_angle_gran (int, optional): The granularity with which dihedral angles are rotated during the coarse
@@ -156,10 +155,13 @@ class ConformerGenerator:
             dict: The member variables and their respective values.
         """
 
-        member_vars = deepcopy(self.__dict__)
-        for key in member_vars.keys():
-            if key[0] == '_':  # private member variable
-                del member_vars[key]
+        member_vars = {}
+        for key, value in list(self.__dict__.items()):
+            if key[0] != '_':  # non-private member variable
+                if key == 'embed_params':
+                    member_vars[key] = utils.list_embed_params(value)
+                else:
+                    member_vars[key] = value
 
         return member_vars
 
