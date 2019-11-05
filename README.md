@@ -17,13 +17,14 @@ Note that within the __conf_gen__ directory there is a __tmp__ directory where f
 In each figure, subfigures A and B are runs performed with an energy cutoff of 5 kcal/mol, where A is the lowest energy conformer, and B is the lowest energy conformer with all other conformers overlayed onto it. Subfigures C and D are runs performed at 10 kcal/mol, where similiarly, C is the lowest energy conformer and D is the lowest energy conformer with all other conformers overlayed onto it.
 
 #### Macrocycle_0
-![macrocycle_0](./examples/images/macrocycle_0.png)
+<img src="./examples/images/macrocycle_0.png" width="300"/>
+
 
 #### Macrocycle_1
-![macrocycle_1](./examples/images/macrocycle_1.png)
+<img src="./examples/images/macrocycle_1.png" width="300"/>
 
 #### Macrocycle_2
-![macrocycle_2](./examples/images/macrocycle_2.png)
+<img src="./examples/images/macrocycle_2.png" width="300"/>
 
 ## Dependencies
 - Python3.6.8 or newer
