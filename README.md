@@ -30,10 +30,14 @@ In each figure, subfigures A and B are runs performed with an energy cutoff of 5
 - [RDKit](http://rdkit.org) 2019.03.2<sup>[2]</sup>
 - [OpenBabel](http://openbabel.org/wiki/Main_Page) 2.4.1<sup>[3]</sup>
 
-## Installation
-```
-conda install -c conda-forge rdkit
-```
+For molecular visualization:
+- [Pymol](https://pymol.org/2/)
+
+
+Optionally, in order to run the __stats.py__ script for generating the graphs above you will need:
+- [Matplotlib](https://matplotlib.org/) 3.1.1
+- [Pandas](https://pandas.pydata.org/) 0.24.2
+- [Seaborn](https://seaborn.pydata.org/) 0.9.0
 
 ## Usage
 ```
