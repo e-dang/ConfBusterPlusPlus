@@ -32,6 +32,7 @@ from time import time
 
 import numpy as np
 from rdkit import Chem
+from rdkit.Chem import AllChem
 
 import utils
 from conf_gen import ConformerGenerator
@@ -402,6 +403,7 @@ class Runner:
         with open(utils.file_rotator(self.output_json), 'w') as file:
             data = {'SMILES': Chem.MolToSmiles(Chem.RemoveHs(mol)),
                     'num_confs': mol.GetNumConformers(),
+                    'num_rotatable_bonds': AllChem.CalcNumRotatableBonds(mol, True),
                     'num_cleavable_bonds': num_cleavable_bonds,
                     'num_ring_atoms': num_ring_atoms,
                     'time': finish,
@@ -428,6 +430,7 @@ class Runner:
 
         print(f'SMILES: {Chem.MolToSmiles(Chem.RemoveHs(mol))}')
         print(f'Number of Conformers: {mol.GetNumConformers()}')
+        print(f'Number of Rotatable Bonds: {AllChem.CalcNumRotatableBonds(mol, True)}')
         print(f'Number of Cleavable Bonds: {num_cleavable_bonds}')
         print(f'Number of Macrocyclic Ring Atoms: {num_ring_atoms}')
         print(f'Time: {finish} seconds')
