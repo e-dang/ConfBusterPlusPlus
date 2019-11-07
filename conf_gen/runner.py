@@ -25,7 +25,9 @@ github - https://github.com/e-dang
 """
 
 import exceptions
+import json
 import os
+import pprint
 from time import time
 
 import numpy as np
@@ -33,6 +35,8 @@ from rdkit import Chem
 
 import utils
 from conf_gen import ConformerGenerator
+
+pprint.sorted = lambda x, key=None: x  # disables sorting of dict keys in pprint.pprint()
 
 
 class Runner:
@@ -53,7 +57,7 @@ class Runner:
 
         self.mols = []
         self.output_pdb = ''
-        self.output_txt = ''
+        self.output_json = ''
         self.params = {}  # parameters to initialize ConformerGenerator with.
         self.run()
 
@@ -69,6 +73,8 @@ class Runner:
 
         generator = ConformerGenerator(**self.params)
         for mol in self.mols:
+            print(f'Generating conformers for molecule: {Chem.MolToSmiles(mol)}')
+
             try:
                 start = time()
                 confs, energies, rmsd, ring_rmsd = generator.generate(mol)
@@ -83,6 +89,7 @@ class Runner:
 
             Chem.MolToPDBFile(confs, utils.file_rotator(self.output_pdb))
             self._write_stats(confs, energies, rmsd, ring_rmsd, finish, generator.get_parameters())
+            self._print_stats(confs, energies, rmsd, ring_rmsd, finish, generator.get_parameters())
 
     def _parse_inputs(self):
         """
@@ -119,8 +126,8 @@ class Runner:
         self._validate_outputs()
 
         self.output_pdb = self.args.out
-        self.output_txt = os.path.join(os.path.split(self.args.out)[0],
-                                       os.path.splitext(os.path.basename(self.args.out))[0] + '.txt')
+        self.output_json = os.path.join(os.path.split(self.args.out)[0], os.path.splitext(
+            os.path.basename(self.args.out))[0] + '.json')
 
     def _validate_outputs(self):
         """
@@ -377,6 +384,18 @@ class Runner:
         exit(code)
 
     def _write_stats(self, mol, energies, rmsd, ring_rmsd, finish, params):
+
+        with open(utils.file_rotator(self.output_json), 'w') as file:
+            data = {'SMILES': Chem.MolToSmiles(Chem.RemoveHs(mol)),
+                    'num_confs': mol.GetNumConformers(),
+                    'time': finish,
+                    'energies': energies,
+                    'rmsd': rmsd,
+                    'ring_rmsd': ring_rmsd,
+                    'parameters': params}
+            json.dump(file, data)
+
+    def _print_stats(self, mol, energies, rmsd, ring_rmsd, finish, params):
         """
         Helper function that writes the run statistics to the provided .txt file.
 
@@ -388,17 +407,16 @@ class Runner:
             finish (float): The total time it took to complete the conformational sampling process (s).
         """
 
-        with open(utils.file_rotator(self.output_txt), 'w') as file:
-            file.write(f'SMILES: {Chem.MolToSmiles(Chem.RemoveHs(mol))}\n')
-            file.write(f'Number of Conformers: {mol.GetNumConformers()}\n')
-            file.write(f'Time: {finish} seconds\n')
-            self._write_stat(energies, 'Energy', 'kcal/mol', file)
-            self._write_stat(rmsd, 'RMSD', 'Å', file)
-            self._write_stat(ring_rmsd, 'Ring_RMSD', 'Å', file)
-            file.write(f' Parameter List '.center(80, '-') + '\n')
-            utils.pprint(params, file)
+        print(f'SMILES: {Chem.MolToSmiles(Chem.RemoveHs(mol))}')
+        print(f'Number of Conformers: {mol.GetNumConformers()}')
+        print(f'Time: {finish} seconds')
+        self._print_stat(energies, 'Energy', 'kcal/mol')
+        self._print_stat(rmsd, 'RMSD', 'Å')
+        self._print_stat(ring_rmsd, 'Ring_RMSD', 'Å')
+        print(f' Parameter List '.center(80, '-') + '\n')
+        pprint.pprint(params)
 
-    def _write_stat(self, stats, stat_name, units, file):
+    def _print_stat(self, stats, stat_name, units):
         """
         Helper function that writes the given statistic in a certain format.
 
@@ -409,13 +427,13 @@ class Runner:
             file (file): The open file object to write to.
         """
 
-        file.write(f' {stat_name} ({units}) '.center(80, '-') + '\n')
+        print(f' {stat_name} ({units}) '.center(80, '-'))
         for stat in stats:
-            file.write(str(stat) + '\n')
+            print(stat)
 
         try:
-            file.write(f'Average: {np.average(stats)}\n')
-            file.write(f'Standard Deviation: {np.std(stats)}\n')
+            print(f'Average: {np.average(stats)}')
+            print(f'Standard Deviation: {np.std(stats)}')
         except RuntimeWarning:
-            file.write('Average: Nan\n')
-            file.write('Standard Deviation: Nan\n')
+            print('Average: Nan')
+            print('Standard Deviation: Nan')
