@@ -62,12 +62,14 @@ def plot_stats(filepaths):
     ax1.bar(stats.keys(), num_confs, color=current_palette)
     ax1.set_xlabel('Energy Cutoff (kcal/mol)')
     ax1.set_ylabel('Number of Conformers')
+    ax1.title.set_text('Number of Conformers')
 
     # Runtimes
     runtimes = np.array([data['time'] for data in stats.values()]).flatten()
     ax2.bar(stats.keys(), runtimes, color=current_palette)
     ax2.set_xlabel('Energy Cutoff (kcal/mol)')
     ax2.set_ylabel('Runtime (sec)')
+    ax2.title.set_text('Runtimes')
 
     # Energy
     cutoffs = np.array([])
@@ -80,6 +82,7 @@ def plot_stats(filepaths):
                 kind='violin', inner='stick', cut=0, data=df_energy, ax=ax3)
     sns.catplot(x='Energy Cutoff (kcal/mol)', y='Energy (kcal/mol)',
                 kind='violin', inner='box', cut=0, data=df_energy, ax=ax3)
+    ax3.title.set_text('Energies')
 
     # RMSD
     cutoffs = np.array([])
@@ -94,6 +97,7 @@ def plot_stats(filepaths):
     sns.catplot(x='Energy Cutoff (kcal/mol)', y='RMSD (Å)',
                 kind='violin', inner='box', cut=0, data=df_rmsd, ax=ax4)
     ax4.set_ylim(0)
+    ax4.title.set_text('RMSD')
 
     # Ring RMSD
     cutoffs = np.array([])
@@ -108,6 +112,7 @@ def plot_stats(filepaths):
     sns.catplot(x='Energy Cutoff (kcal/mol)', y='Ring RMSD (Å)',
                 kind='violin', inner='box', cut=0, data=df_ring_rmsd, ax=ax5)
     ax5.set_ylim(0)
+    ax5.title.set_text('Ring RMSD')
 
     fig.tight_layout(w_pad=0.5)
 
@@ -135,7 +140,17 @@ def load_data(filepaths):
     return stats
 
 
-filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_5_0.json'),
-             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_10_0.json')]
+filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_0_5.json'),
+             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_0_10.json')]
 fig = plot_stats(filepaths)
-fig.savefig('macrocycle_2.png')
+fig.savefig('macrocycle_0_stats.png')
+
+filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_1_5.json'),
+             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_1_10.json')]
+fig = plot_stats(filepaths)
+fig.savefig('macrocycle_1_stats.png')
+
+filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_5.json'),
+             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_10.json')]
+fig = plot_stats(filepaths)
+fig.savefig('macrocycle_2_stats.png')
