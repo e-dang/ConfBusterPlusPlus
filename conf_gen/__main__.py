@@ -32,10 +32,13 @@ from runner import Runner
 def main():
     parser = argparse.ArgumentParser(description='Perform conformational sampling on the given macrocycle. Macrocycles '
                                      'can be input via SMILES strings or .sdf files. The conformers are output to a '
-                                     '.pdb file specified by the --out option and the run statistic are output in a '
-                                     '.txt with the same base filename as the .pdb file. The input macrocycles and '
-                                     'output file must be specified, all other command line arguments are optional. '
-                                     'Written by Eric Dang, github - https://github.com/e-dang')
+                                     '.pdb file specified by the --out option and the run statistics are output in a '
+                                     'separate json file with the same base filename as the .pdb file. The input '
+                                     'macrocycles and output filepath must be specified, all other command line '
+                                     'arguments are optional. Program exits with code 0 upon a successful run, code 1 '
+                                     'when there an invalid argument is given to an I/O option, and code 2 when there '
+                                     'is an invalid given to any other type of option. Written by Eric Dang, github - '
+                                     'https://github.com/e-dang')
 
     parser.add_argument('--smiles', type=str, nargs='*', help='The SMILES string(s) of the macrocycle(s) separated by a'
                         ' single space.')
