@@ -40,7 +40,7 @@ import utils
 
 TMP_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
 
-NewConformer = namedtuple('NewConformer', 'conformer energies rms ring_rms')
+NewConformer = namedtuple('NewConformer', 'conformer energies rms ring_rms num_cleavable_bonds num_ring_atoms')
 
 
 class ConformerGenerator:
@@ -252,7 +252,7 @@ class ConformerGenerator:
 
         # remove temporary files
         self._cleanup()
-        return NewConformer(macrocycle, energies, rmsd, ring_rmsd)
+        return NewConformer(macrocycle, energies, rmsd, ring_rmsd, len(self._cleavable_bonds), len(self._ring_atoms))
 
     def _get_cleavable_bonds(self, macrocycle):
         """

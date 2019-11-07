@@ -77,7 +77,7 @@ class Runner:
 
             try:
                 start = time()
-                confs, energies, rmsd, ring_rmsd = generator.generate(mol)
+                confs, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms = generator.generate(mol)
                 finish = time() - start
             except exceptions.FailedEmbedding:
                 print(f'Failed to embed molecule: {Chem.MolToSmiles(mol)}\nMay need to change embedding parameters.')
@@ -87,9 +87,10 @@ class Runner:
                       f'{Chem.MolToSmiles(mol)}.')
                 continue
 
+            params = generator.get_parameters()
             Chem.MolToPDBFile(confs, utils.file_rotator(self.output_pdb))
-            self._write_stats(confs, energies, rmsd, ring_rmsd, finish, generator.get_parameters())
-            self._print_stats(confs, energies, rmsd, ring_rmsd, finish, generator.get_parameters())
+            self._write_stats(confs, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms, finish, params)
+            self._print_stats(confs, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms, finish, params)
 
     def _parse_inputs(self):
         """
@@ -383,32 +384,52 @@ class Runner:
         print(message)
         exit(code)
 
-    def _write_stats(self, mol, energies, rmsd, ring_rmsd, finish, params):
-
-        with open(utils.file_rotator(self.output_json), 'w') as file:
-            data = {'SMILES': Chem.MolToSmiles(Chem.RemoveHs(mol)),
-                    'num_confs': mol.GetNumConformers(),
-                    'time': finish,
-                    'energies': energies,
-                    'rmsd': rmsd,
-                    'ring_rmsd': ring_rmsd,
-                    'parameters': params}
-            json.dump(file, data)
-
-    def _print_stats(self, mol, energies, rmsd, ring_rmsd, finish, params):
+    def _write_stats(self, mol, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms, finish, params):
         """
-        Helper function that writes the run statistics to the provided .txt file.
+        Function that writes the run statistics to the provided .json file.
 
         Args:
             mol (RDKit Mol): The molecule used in the conformational sampling.
             energies (list): A list of the conformer energies (kcal/mol).
             rmsd (list): A list of RMSD values between each conformer and the lowest energy conformer (Å).
             ring_rmsd (list): A list of ring RMSD values between each conformer and the lowest energy conformer (Å).
+            num_cleavable_bonds (int): The number of cleavable bonds found in the macrocycle.
+            num_ring_atoms (int): The size of the macrocyclic ring(s) in atoms.
             finish (float): The total time it took to complete the conformational sampling process (s).
+            params (dict): The parameters that the ConformerGenerator used to generate the set of conformers.
+        """
+
+        with open(utils.file_rotator(self.output_json), 'w') as file:
+            data = {'SMILES': Chem.MolToSmiles(Chem.RemoveHs(mol)),
+                    'num_confs': mol.GetNumConformers(),
+                    'num_cleavable_bonds': num_cleavable_bonds,
+                    'num_ring_atoms': num_ring_atoms,
+                    'time': finish,
+                    'energies': energies,
+                    'rmsd': rmsd,
+                    'ring_rmsd': ring_rmsd,
+                    'parameters': params}
+            json.dump(data, file)
+
+    def _print_stats(self, mol, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms, finish, params):
+        """
+        Helper function that formats and prints the run statistics to the console.
+
+        Args:
+            mol (RDKit Mol): The molecule used in the conformational sampling.
+            energies (list): A list of the conformer energies (kcal/mol).
+            rmsd (list): A list of RMSD values between each conformer and the lowest energy conformer (Å).
+            ring_rmsd (list): A list of ring RMSD values between each conformer and the lowest energy conformer (Å).
+            num_cleavable_bonds (int): The number of cleavable bonds found in the macrocycle.
+            num_ring_atoms (int): The size of the macrocyclic ring(s) in atoms.
+            finish (float): The total time it took to complete the conformational sampling process (s).
+            params (dict): The parameters that the ConformerGenerator used to generate the set of conformers.
         """
 
         print(f'SMILES: {Chem.MolToSmiles(Chem.RemoveHs(mol))}')
         print(f'Number of Conformers: {mol.GetNumConformers()}')
+        print(f'Number of Cleavable Bonds: {num_cleavable_bonds}')
+        print(f'Number of Macrocyclic Ring Atoms: {num_ring_atoms}')
         print(f'Time: {finish} seconds')
         self._print_stat(energies, 'Energy', 'kcal/mol')
         self._print_stat(rmsd, 'RMSD', 'Å')
@@ -418,13 +439,12 @@ class Runner:
 
     def _print_stat(self, stats, stat_name, units):
         """
-        Helper function that writes the given statistic in a certain format.
+        Helper function that prints the given statistic in a certain format.
 
         Args:
             stats (list): The list of numbers that compose this statistic.
             stat_name (str): The name of the statistic.
             units (str): The units that the statistic is measured in.
-            file (file): The open file object to write to.
         """
 
         print(f' {stat_name} ({units}) '.center(80, '-'))
