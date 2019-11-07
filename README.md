@@ -21,21 +21,21 @@ In each figure, subfigures A and B are runs performed with an energy cutoff of 5
 | :-----------------------: | :-----------------------: | :-------------: |
 |             5             |             9             |       20        |
 
-<div style="text-align:center"> <img src="./examples/images/macrocycle_0.png" width="300"/> <img src="./examples/images/macrocycle_0_stats.png" width="300"/> </div>
+<div style="text-align:center"> <img src="./examples/images/macrocycle_0.png" width="300"/> <img src="./examples/images/macrocycle_0_stats.png" width="400"/> </div>
 
 #### Macrocycle_1
 | Number of Rotatable Bonds | Number of Cleavable Bonds | Macro-Ring Size |
 | :-----------------------: | :-----------------------: | :-------------: |
 |             9             |            11             |       27        |
 
-<div style="text-align:center"> <img src="./examples/images/macrocycle_1.png" width="300"/> <img src="./examples/images/macrocycle_1_stats.png" width="300"/> </div>
+<div style="text-align:center"> <img src="./examples/images/macrocycle_1.png" width="300"/> <img src="./examples/images/macrocycle_1_stats.png" width="400"/> </div>
 
 #### Macrocycle_2
 | Number of Rotatable Bonds | Number of Cleavable Bonds | Macro-Ring Size |
 | :-----------------------: | :-----------------------: | :-------------: |
 |             3             |             7             |       21        |
 
-<div style="text-align:center"> <img src="./examples/images/macrocycle_2.png" width="300"/> <img src="./examples/images/macrocycle_2_stats.png" width="300"/> </div>
+<div style="text-align:center"> <img src="./examples/images/macrocycle_2.png" width="300"/> <img src="./examples/images/macrocycle_2_stats.png" width="400"/> </div>
 
 ## Dependencies
 - Python3.6.8 or newer
