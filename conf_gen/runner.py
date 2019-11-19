@@ -107,7 +107,7 @@ class Runner:
 
         # load mol(s) from file
         if self.args.sdf:
-            self.mols.extend([mol for mol in Chem.SDMolSupplier(self.args.sdf)])
+            self.mols.extend([Chem.MolFromSmiles(Chem.MolToSmiles(mol)) for mol in Chem.SDMolSupplier(self.args.sdf)])
 
     def _validate_inputs(self):
         """
