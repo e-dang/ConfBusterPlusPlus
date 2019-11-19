@@ -114,17 +114,8 @@ class ConformerGenerator:
         self.num_embed_tries = num_embed_tries
         self.embed_params = self._create_embed_params(embed_params)
 
-        # data
-        self._cleavable_bonds = []
-        self._dihedrals = {'cleaved_and_Hs': [],
-                           'cleaved': [],
-                           'other': []
-                           }
-        self._ring_atoms = []
-        self._macro_ring_bonds = []
-        self._small_ring_bonds = set()
-        self._cleaved_atom1 = None
-        self._cleaved_atom2 = None
+        # intialize data containers
+        self._reset()
 
     def __del__(self):
         """
@@ -252,7 +243,10 @@ class ConformerGenerator:
 
         # remove temporary files
         self._cleanup()
-        return NewConformer(macrocycle, energies, rmsd, ring_rmsd, len(self._cleavable_bonds), len(self._ring_atoms))
+        new_conf = NewConformer(macrocycle, energies, rmsd, ring_rmsd,
+                                len(self._cleavable_bonds), len(self._ring_atoms))
+        self._reset()
+        return new_conf
 
     def _get_cleavable_bonds(self, macrocycle):
         """
@@ -856,6 +850,23 @@ class ConformerGenerator:
         for file in (mol_file, results_file):
             if os.path.exists(file):
                 os.remove(file)
+
+    def _reset(self):
+        """
+        Sets all private instance variables to their original state. Ensures results from previous runs don't leak into
+        later runs.
+        """
+
+        self._cleavable_bonds = []
+        self._dihedrals = {'cleaved_and_Hs': [],
+                           'cleaved': [],
+                           'other': []
+                           }
+        self._ring_atoms = []
+        self._macro_ring_bonds = []
+        self._small_ring_bonds = set()
+        self._cleaved_atom1 = None
+        self._cleaved_atom2 = None
 
     def _validate_macrocycle(self):
         """
