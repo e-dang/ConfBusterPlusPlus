@@ -107,7 +107,7 @@ class Runner:
 
         # load mol(s) from file
         if self.args.sdf:
-            self.mols.extend(list(Chem.SDMolSupplier(self.args.sdf)))
+            self.mols.extend([mol for mol in Chem.SDMolSupplier(self.args.sdf)])
 
     def _validate_inputs(self):
         """
@@ -231,14 +231,17 @@ class Runner:
         self.params with the specified value.
         """
 
-        if self.args.min_rmsd:
-            if self.args.min_rmsd < 0:
-                self._terminate('Error. The argument min_rmsd must be greater than or equal to 0.', 2)
-            elif self.args.min_rmsd > 1:
-                print('Warning - the higher the value of min_rmsd the less conformers you are likely to end up with. '
-                      f'Current value is {self.args.min_rmsd}.')
+        try:
+            if self.args.min_rmsd or int(self.args.min_rmsd) == 0:
+                if self.args.min_rmsd < 0:
+                    self._terminate('Error. The argument min_rmsd must be greater than or equal to 0.', 2)
+                elif self.args.min_rmsd > 1:
+                    print('Warning - the higher the value of min_rmsd the less conformers you are likely to end up with. '
+                          f'Current value is {self.args.min_rmsd}.')
 
-            self.params['min_rmsd'] = self.args.min_rmsd
+                self.params['min_rmsd'] = self.args.min_rmsd
+        except TypeError:
+            pass
 
     def _validate_energy_diff(self):
         """
