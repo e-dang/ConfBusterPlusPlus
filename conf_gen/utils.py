@@ -110,7 +110,7 @@ def attach_file_num(filepath, file_num):
         str: The file path with the file number appended to the base file name.
     """
 
-    new_fp, ext = filepath.split('.')
+    new_fp, ext = os.path.abspath(filepath).split('.')
     new_fp += '_' + str(file_num) + '.' + ext
     return new_fp
 
