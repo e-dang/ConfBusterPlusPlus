@@ -217,6 +217,17 @@ class Runner:
         if self.args.force_field:
             self.params['force_field'] = self.args.force_field
 
+    def _validate_dielectric(self):
+        """
+        Ensures dielectric is greater than or equal to 1, then fills self.params with the specified value.
+        """
+
+        if self.args.dielectric:
+            if self.args.dielectric < 1:
+                self._terminate('Error. The argument dielectric must be greater than or equal to 1.', 2)
+
+            self.params['dielectric'] = self.args.dielectric
+
     def _validate_score(self):
         """
         Fills self.params with the specified score, if one was given. Validation is done via argparse.

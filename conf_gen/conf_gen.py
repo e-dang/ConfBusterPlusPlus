@@ -59,7 +59,7 @@ class ConformerGenerator:
     GENETIC_FILE = os.path.join(TMP_DIR, 'genetic_results.sdf')
 
     def __init__(self, repeats_per_cut=5, num_confs_genetic=50, num_confs_rotamer_search=5, force_field='MMFF94s',
-                 score='energy', min_rmsd=0.5, energy_diff=10, embed_params=None, small_angle_gran=5,
+                 dielectric=1.0, score='energy', min_rmsd=0.5, energy_diff=10, embed_params=None, small_angle_gran=5,
                  large_angle_gran=15, clash_threshold=0.9, distance_interval=[1.0, 2.5], num_threads=0, max_iters=1000,
                  num_embed_tries=5):
         """
@@ -73,6 +73,7 @@ class ConformerGenerator:
             num_confs_rotamer_search (int, optional): The maximum number of conformers to accept during the rotamer
                 search. Defaults to 5.
             force_field (str, optional): The force field to use for energy minimizations. Defaults to 'MMFF94s'.
+            dielectric (float, optional): The dielectric constant to use during energy minimizations. Defaults to 1.
             score (str, optional): The score to use for the genetic algorithm. Defaults to 'energy'.
             min_rmsd (float, optional): The minimum RMSD that two conformers must be apart in order for both to be kept.
                 Defaults to 0.5.
@@ -102,6 +103,7 @@ class ConformerGenerator:
         self.num_confs_genetic = num_confs_genetic
         self.num_confs_rotamer_search = num_confs_rotamer_search
         self.force_field = force_field
+        self.dielectric = dielectric
         self.score = score
         self.min_rmsd = min_rmsd
         self.energy_diff = energy_diff
@@ -548,6 +550,7 @@ class ConformerGenerator:
 
         mol_props = AllChem.MMFFGetMoleculeProperties(mol)
         mol_props.SetMMFFVariant(self.force_field)
+        mol_props.SetMMFFDielectricConstant(self.dielectric)
         force_fields = list(map(lambda x: AllChem.MMFFGetMoleculeForceField(
             mol, mol_props, confId=x, ignoreInterfragInteractions=False), range(mol.GetNumConformers())))
 

@@ -49,8 +49,10 @@ def main():
                         'genetic algorithm. Defaults to 50.')
     parser.add_argument('--num_confs_rotamer_search', '-n', type=int, help='The maximum number of conformers to accept '
                         'during the rotamer search. Defaults to 5.')
-    parser.add_argument('--force_field', '-ff', type=str, choices=['MMFF94', 'MMFF94s'], help='The force field to use '
+    parser.add_argument('--force_field', '--ff', type=str, choices=['MMFF94', 'MMFF94s'], help='The force field to use '
                         'for energy minimizations. Defaults to MMFF94s.')
+    parser.add_argument('--dielectric', '--eps', type=float, help='The dielectric constant to use during energy '
+                        'minimizations. Defaults to 1.0.')
     parser.add_argument('--score', '-s', type=str, choices=['energy', 'rmsd'], help='The score to use for the genetic '
                         'algorithm. Defaults to energy.')
     parser.add_argument('--min_rmsd', '--rmsd', type=float, help='The minimum RMSD that two conformers must be apart in '
