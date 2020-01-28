@@ -68,9 +68,12 @@ class Runner:
         conformational sampling process, and saves the output.
         """
 
-        self._parse_inputs()
-        self._parse_outputs()
-        self._parse_parameters()
+        try:
+            self._parse_inputs()
+            self._parse_outputs()
+            self._parse_parameters()
+        except RuntimeWarning as warning:
+            print(warning)
 
         generator = ConformerGenerator(**self.params)
         for mol in self.mols:
@@ -217,6 +220,10 @@ class Runner:
         if self.args.force_field:
             self.params['force_field'] = self.args.force_field
 
+        if self.args.force_field != 'MMFF94s':
+            raise RuntimeWarning('Warning! Openbabel\'s genetic algorithm currently only supports the force field '
+                                 'MMFF94s. Changing the force field only applies to RDKit\'s force field.')
+
     def _validate_dielectric(self):
         """
         Ensures dielectric is greater than or equal to 1, then fills self.params with the specified value.
@@ -227,6 +234,10 @@ class Runner:
                 self._terminate('Error. The argument dielectric must be greater than or equal to 1.', 2)
 
             self.params['dielectric'] = self.args.dielectric
+
+        if self.args.dielectric != 1:
+            raise RuntimeWarning('Warning! Openbabel\'s genetic algorithm currently only supports a dielectric constant'
+                                 ' of 1. Changing the dielectric constant will only apply to RDKit\'s force fields.')
 
     def _validate_score(self):
         """
