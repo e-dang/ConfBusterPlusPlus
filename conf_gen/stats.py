@@ -25,7 +25,6 @@ github - https://github.com/e-dang
 """
 
 import json
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -138,19 +137,3 @@ def load_data(filepaths):
             stats[str(int(data['parameters']['energy_diff']))] = data
 
     return stats
-
-
-filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_0_5.json'),
-             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_0_10.json')]
-fig = plot_stats(filepaths)
-fig.savefig('macrocycle_0_stats.png')
-
-filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_1_5.json'),
-             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_1_10.json')]
-fig = plot_stats(filepaths)
-fig.savefig('macrocycle_1_stats.png')
-
-filepaths = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_5.json'),
-             os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples', 'macrocycle_2_10.json')]
-fig = plot_stats(filepaths)
-fig.savefig('macrocycle_2_stats.png')
