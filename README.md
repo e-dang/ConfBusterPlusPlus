@@ -1,4 +1,4 @@
-# Macrocycle-Conformer-Generator
+# ConfBuster++
 
 ## Info
 An RDKit implementation of ConfBuster's<sup>[1]</sup> algorithm for macrocycle conformer generation. This is a
