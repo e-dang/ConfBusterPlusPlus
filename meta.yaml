@@ -6,6 +6,8 @@ source:
   git_rev: master
   git_url: https://github.com/e-dang/ConfBusterPlusPlus.git
 
+# apparently conda wont let you specify requirements in specific channels so requirements must be installed manually by
+# user. See README for details.
 requirements:
   build:
     - python
@@ -13,10 +15,6 @@ requirements:
 
   run:
     - python
-
-# test:
-#   imports:
-#     - confbusterplusplus
 
 about:
   home: https://github.com/e-dang/ConfBusterPlusPlus.git
