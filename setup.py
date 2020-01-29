@@ -12,7 +12,7 @@ def read(fname):
 
 
 setup(
-    name="confbuster++",
+    name="confbusterplusplus",
     version="1.0.0",
     author="Eric Dang",
     description=("A macrocycle conformational sampling tool."),

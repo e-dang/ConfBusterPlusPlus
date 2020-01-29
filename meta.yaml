@@ -1,5 +1,5 @@
 package:
-  name: "confbuster++"
+  name: "confbusterplusplus"
   version: "1.0.0"
 
 source:
@@ -24,7 +24,7 @@ requirements:
 
 test:
   imports:
-    - confbuster++
+    - confbusterplusplus
 
 about:
   home: https://github.com/e-dang/ConfBusterPlusPlus.git
