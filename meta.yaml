@@ -11,20 +11,20 @@ requirements:
     - python
     - setuptools
     - argparse
-    - numpy
-    - matplotlib
+    - numpy 1.18.1
+    - matplotlib 3.1.1
     - rdkit 2019.03.2
 
   run:
     - python
     - argparse
-    - numpy
-    - matplotlib
+    - numpy 1.18.1
+    - matplotlib 3.1.1
     - rdkit 2019.03.2
 
 test:
   imports:
-    - conf_gen
+    - confbuster++
 
 about:
   home: https://github.com/e-dang/ConfBusterPlusPlus.git
