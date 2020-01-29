@@ -54,17 +54,17 @@ Optionally, in order to run the __stats.py__ script for generating the graphs ab
 
 ## Usage
 ```
-python path/to/confbusterplusplus --smiles <SMILES string> -o path/to/output_file.pdb
+python -m path/to/confbusterplusplus --smiles <SMILES string> -o path/to/output_file.pdb
 ```
 
 There are also a number of different parameters that may be specified to modify how the conformational sampling process is performed. A full list of options can be seen by typing the command:
 ```
-python path/to/confbusterplusplus --help
+python -m path/to/confbusterplusplus --help
 ```
 
 As an example, this is how you would run the conformational sampling process with an energy cutoff of 5 kcal/mol:
 ```
-python path/to/confbusterplusplus --smiles <SMILES string> -e 5 -o path/to/output_file.pdb
+python -m path/to/confbusterplusplus --smiles <SMILES string> -e 5 -o path/to/output_file.pdb
 ```
 
 ## Citations
