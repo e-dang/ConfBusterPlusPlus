@@ -25,7 +25,6 @@ github - https://github.com/e-dang
 """
 
 
-import exceptions
 import os
 from collections import namedtuple
 from copy import deepcopy
