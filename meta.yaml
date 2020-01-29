@@ -10,17 +10,15 @@ requirements:
   build:
     - python
     - setuptools
-    - argparse
     - numpy 1.18.1
     - matplotlib 3.1.1
-    - rdkit 2019.03.2
+    - rdkit
 
   run:
     - python
-    - argparse
     - numpy 1.18.1
     - matplotlib 3.1.1
-    - rdkit 2019.03.2
+    - rdkit
 
 test:
   imports:
