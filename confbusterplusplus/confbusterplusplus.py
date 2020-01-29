@@ -36,7 +36,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import utils
+import confbusterplusplus.exceptions as exceptions
+import confbusterplusplus.utils as utils
 
 TMP_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
 

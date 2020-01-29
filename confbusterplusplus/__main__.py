@@ -26,7 +26,7 @@ github - https://github.com/e-dang
 
 import argparse
 
-from runner import Runner
+from confbusterplusplus.runner import Runner
 
 
 def main():

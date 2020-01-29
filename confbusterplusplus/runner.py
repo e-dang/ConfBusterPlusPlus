@@ -34,8 +34,9 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import utils
-from conf_gen import ConformerGenerator
+import confbusterplusplus.exceptions as exceptions
+import confbusterplusplus.utils as utils
+from confbusterplusplus.confbusterplusplus import ConformerGenerator
 
 pprint.sorted = lambda x, key=None: x  # disables sorting of dict keys in pprint.pprint()
 
