@@ -110,9 +110,10 @@ def attach_file_num(filepath, file_num):
         str: The file path with the file number appended to the base file name.
     """
 
-    new_fp, ext = os.path.abspath(filepath).split('.')
-    new_fp += '_' + str(file_num) + '.' + ext
-    return new_fp
+    path, basename = os.path.split(os.path.abspath(filepath))
+    new_basename, ext = basename.split('.')
+    new_basename += '_' + str(file_num) + '.' + ext
+    return os.path.join(path, new_basename)
 
 
 def list_embed_params(embed_params):
