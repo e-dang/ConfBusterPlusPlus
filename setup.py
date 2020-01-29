@@ -19,7 +19,7 @@ setup(
     license="MIT",
     keywords="macrocycle conformer sampling",
     url="https://github.com/e-dang/ConfBusterPlusPlus.git",
-    packages=find_packages(exclude=('examples')),
+    packages=find_packages(),
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: 3 - Alpha",
