@@ -24,7 +24,6 @@ SOFTWARE.
 github - https://github.com/e-dang
 """
 
-import exceptions
 import json
 import os
 import pprint
