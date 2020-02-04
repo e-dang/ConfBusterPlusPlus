@@ -220,7 +220,7 @@ class Runner:
         if self.args.force_field:
             self.params['force_field'] = self.args.force_field
 
-        if self.args.force_field != 'MMFF94s':
+        if self.args.force_field != 'MMFF94s' and self.args.force_field is not None:
             raise RuntimeWarning('Warning! Openbabel\'s genetic algorithm currently only supports the force field '
                                  'MMFF94s. Changing the force field only applies to RDKit\'s force field.')
 
