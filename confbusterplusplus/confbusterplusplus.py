@@ -30,6 +30,7 @@ from collections import namedtuple
 from copy import deepcopy
 from itertools import chain, combinations
 from time import time
+import random
 
 import numpy as np
 from rdkit import Chem
@@ -186,51 +187,52 @@ class ConformerGenerator:
 
         # for each cleavable bond, perform algorithm
         opt_energies = {}
-        min_energy = None
-        for bond in self._cleavable_bonds:
+        while not opt_energies:
+            min_energy = None
+            for bond in self._cleavable_bonds:
 
-            # cleave the bond and update the dihedral list
-            linear_mol = Chem.AddHs(self._cleave_bond(macrocycle, bond))
-            new_dihedrals = self._update_dihedrals(linear_mol)
+                # cleave the bond and update the dihedral list
+                linear_mol = Chem.AddHs(self._cleave_bond(macrocycle, bond))
+                new_dihedrals = self._update_dihedrals(linear_mol)
 
-            # use genetic algorithm to generate linear rotamers and optimize via force field then via dihedral rotations
-            # and keep best results then repeat
-            opt_linear_rotamers = []
-            for _ in range(self.repeats_per_cut):
-                rotamers = deepcopy(linear_mol)
-                self._embed_molecule(rotamers)
-                self._optimize_conformers(rotamers)
-                rotamers = self._genetic_algorithm(rotamers)
-                energies = self._optimize_conformers(rotamers)
-                opt_linear_rotamers.extend(self._optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
-                                                                          new_dihedrals))
+                # use genetic algorithm to generate linear rotamers and optimize via force field then via dihedral rotations
+                # and keep best results then repeat
+                opt_linear_rotamers = []
+                for _ in range(self.repeats_per_cut):
+                    rotamers = deepcopy(linear_mol)
+                    self._embed_molecule(rotamers)
+                    self._optimize_conformers(rotamers)
+                    rotamers = self._genetic_algorithm(rotamers)
+                    energies = self._optimize_conformers(rotamers)
+                    opt_linear_rotamers.extend(self._optimize_linear_rotamers(rotamers, int(np.argmin(energies)),
+                                                                              new_dihedrals))
 
-            # add best resulting rotamers to mol
-            for optimized_linear in opt_linear_rotamers:
-                linear_mol.AddConformer(optimized_linear, assignId=True)
+                # add best resulting rotamers to mol
+                for optimized_linear in opt_linear_rotamers:
+                    linear_mol.AddConformer(optimized_linear, assignId=True)
 
-            # reform bond
-            macro_mol = self._remake_bond(linear_mol)
-            macro_mol = Chem.AddHs(macro_mol, addCoords=True)
-            try:
-                # optimize macrocycle and filter out conformers
-                energies = self._optimize_conformers(macro_mol)
-                self._filter_conformers(macro_mol, energies)
-                mols = [self._genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
-                macro_mol = self._aggregate_conformers(mols)
-                self._filter_conformers(macro_mol, np.ones(macro_mol.GetNumConformers()))
-                new_mol = Chem.AddHs(macrocycle)
-                for conf in macro_mol.GetConformers():
-                    new_mol.AddConformer(conf, assignId=True)
-                energies = self._optimize_conformers(new_mol)
-            except (IndexError, ValueError):  # number of conformers after filtering is 0
-                continue
+                # reform bond
+                macro_mol = self._remake_bond(linear_mol)
+                macro_mol = Chem.AddHs(macro_mol, addCoords=True)
+                try:
+                    # optimize macrocycle and filter out conformers
+                    energies = self._optimize_conformers(macro_mol)
+                    self._filter_conformers(macro_mol, energies)
+                    mols = [self._genetic_algorithm(macro_mol, conf_id=i) for i in range(macro_mol.GetNumConformers())]
+                    macro_mol = self._aggregate_conformers(mols)
+                    self._filter_conformers(macro_mol, np.ones(macro_mol.GetNumConformers()))
+                    new_mol = Chem.AddHs(macrocycle)
+                    for conf in macro_mol.GetConformers():
+                        new_mol.AddConformer(conf, assignId=True)
+                    energies = self._optimize_conformers(new_mol)
+                except (IndexError, ValueError):  # number of conformers after filtering is 0
+                    continue
 
-            # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
-            # optimum conformers
-            min_energy = self._get_lowest_energy(energies, min_energy)
-            Chem.SanitizeMol(new_mol)
-            self._evaluate_conformers(new_mol, energies, storage_mol, opt_energies, min_energy)
+                # compare newly generated conformers to optimum conformers and if it is valid then add it to the list of
+                # optimum conformers
+                min_energy = self._get_lowest_energy(energies, min_energy)
+                Chem.SanitizeMol(new_mol)
+                self._evaluate_conformers(new_mol, energies, storage_mol, opt_energies, min_energy)
 
         # add conformers to opt_macrocycle in order of increasing energy
         energies, rmsd, ring_rmsd = [], [], []
