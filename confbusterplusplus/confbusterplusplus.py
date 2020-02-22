@@ -179,7 +179,7 @@ class ConformerGenerator:
         """
 
         storage_mol = Chem.AddHs(macrocycle)
-        self._get_ring_atoms(macrocycle)
+        self._ring_atoms = self._get_ring_atoms(macrocycle)
         self._validate_macrocycle()
         self._get_ring_bonds(macrocycle)
         self._get_cleavable_bonds(macrocycle)
@@ -193,6 +193,8 @@ class ConformerGenerator:
 
                 # cleave the bond and update the dihedral list
                 linear_mol = Chem.AddHs(self._cleave_bond(macrocycle, bond))
+                if self._get_ring_atoms(linear_mol):  # cleaved bond did not break macrocycle ring (could be proline bond)
+                    continue
                 new_dihedrals = self._update_dihedrals(linear_mol)
 
                 # use genetic algorithm to generate linear rotamers and optimize via force field then via dihedral rotations
@@ -349,7 +351,7 @@ class ConformerGenerator:
 
         ring_atoms = [ring for ring in macrocycle.GetRingInfo().AtomRings() if
                       len(ring) >= self.MIN_MACRO_RING_SIZE]
-        self._ring_atoms = list(set().union(*ring_atoms))
+        return list(set().union(*ring_atoms))
 
     def _get_ring_bonds(self, macrocycle):
         """
