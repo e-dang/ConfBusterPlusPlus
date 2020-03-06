@@ -190,7 +190,6 @@ class ConformerGenerator:
         while not opt_energies:
             min_energy = None
             for bond in self._cleavable_bonds:
-
                 # cleave the bond and update the dihedral list
                 linear_mol = Chem.AddHs(self._cleave_bond(macrocycle, bond))
                 if self._get_ring_atoms(linear_mol):  # cleaved bond did not break macrocycle ring (could be proline bond)
@@ -530,16 +529,31 @@ class ConformerGenerator:
             exceptions.FailedEmbedding: Raised if embeding fails after a given number of tries.
         """
 
-        Chem.FindMolChiralCenters(mol)  # assigns bond stereo chemistry when other functions wouldn't
         Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
-
-        for _ in range(self.num_embed_tries):
-            if AllChem.EmbedMolecule(mol, params=self.embed_params) >= 0:
+        smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
+        while True:
+            conf_ids = [AllChem.EmbedMolecule(mol, params=self.embed_params)]
+            conf_ids = self._filter_stereo(mol, conf_ids, smiles)
+            if len(conf_ids):
                 break
             self.embed_params.randomSeed = int(time())  # find new seed because last seed wasnt able to embed molecule
-        else:
-            if AllChem.EmbedMolecule(mol, maxAttempts=self.max_iters, useRandomCoords=True) < 0:
-                raise exceptions.FailedEmbedding
+
+    def _filter_stereo(self, mol, conf_ids, smiles):
+
+        for conf_id in conf_ids:
+            if smiles != Chem.MolToSmiles(Chem.MolFromMolBlock(Chem.MolToMolBlock(Chem.RemoveHs(mol), confId=conf_id))):
+                mol.RemoveConformer(conf_id)
+
+        return self._reset_conf_ids(mol)
+
+    def _reset_conf_ids(self, mol):
+
+        conf_ids = []
+        for i, conf in enumerate(mol.GetConformers()):
+            conf.SetId(i)
+            conf_ids.append(i)
+
+        return conf_ids
 
     def _optimize_conformers(self, mol):
         """
