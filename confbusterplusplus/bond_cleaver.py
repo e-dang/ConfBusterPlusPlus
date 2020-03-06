@@ -30,8 +30,8 @@ class BondCleaver:
         cleaved_atom2.SetNumExplicitHs(1 + cleaved_atom2.GetTotalNumHs())
         Chem.SanitizeMol(mol)
 
-        self._cleaved_atom1 = cleaved_atom1.GetIdx()
-        self._cleaved_atom2 = cleaved_atom2.GetIdx()
+        self.cleaved_atom1 = cleaved_atom1.GetIdx()
+        self.cleaved_atom2 = cleaved_atom2.GetIdx()
 
         return mol
 
@@ -48,8 +48,8 @@ class BondCleaver:
 
         mol = Chem.RWMol(Chem.RemoveHs(linear_mol, updateExplicitCount=True))
 
-        cleaved_atom1 = mol.GetAtomWithIdx(self._cleaved_atom1)
-        cleaved_atom2 = mol.GetAtomWithIdx(self._cleaved_atom2)
+        cleaved_atom1 = mol.GetAtomWithIdx(self.cleaved_atom1)
+        cleaved_atom2 = mol.GetAtomWithIdx(self.cleaved_atom2)
 
         # reset hydrogen counts
         cleaved_atom1.SetNumExplicitHs(cleaved_atom1.GetTotalNumHs() - 1)
