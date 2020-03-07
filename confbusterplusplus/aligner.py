@@ -17,4 +17,4 @@ class MolAligner:
 
         rmsd = []
         AllChem.AlignMolConformers(mol, maxIters=self.max_iters, atomIds=atoms, RMSlist=rmsd)
-        return atoms
+        return rmsd
