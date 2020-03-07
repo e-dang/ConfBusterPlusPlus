@@ -5,6 +5,7 @@ from time import time
 from rdkit.Chem import AllChem
 
 import confbusterplusplus.utils as utils
+from confbusterplusplus.validator import ParameterValidator
 from confbusterplusplus.aligner import MolAligner
 from confbusterplusplus.bond_cleaver import BondCleaver
 from confbusterplusplus.confbusterplusplus import ConformerGenerator
@@ -28,13 +29,14 @@ class ConfBusterFactory:
     def __init__(self, repeats_per_cut=5, num_confs_embed=50, num_confs_genetic=50, num_confs_rotamer_search=5, force_field='MMFF94s',
                  dielectric=1.0, score='energy', min_rmsd=0.5, energy_diff=5, embed_params=None, small_angle_gran=5,
                  large_angle_gran=15, clash_threshold=0.9, distance_interval=[1.0, 2.5], num_threads=0, max_iters=1000,
-                 min_macro_ring_size=10, extra_iters=50):
+                 min_macro_ring_size=10, extra_iters=50, **kwargs):
         """
         Initializer.
 
         Args:
             repeats_per_cut (int, optional): The number of times the linear oligomer is subjected to random embedding,
                 the genetic algorithm, and subsequent rotamer search. Defaults to 5.
+            num_confs_embed (int, optional): The number of conformers to generate when embedding. Defaults to 50.
             num_confs_genetic (int, optional): The number of conformers to generate using the genetic algorithm.
                 Defaults to 50.
             num_confs_rotamer_search (int, optional): The maximum number of conformers to accept during the rotamer
@@ -86,6 +88,8 @@ class ConfBusterFactory:
         self.min_macro_ring_size = min_macro_ring_size
         self.extra_iters = extra_iters
         self.embed_params = self.create_embed_params(embed_params)
+
+        self.validator = ParameterValidator(**self.__dict__)
 
     def get_parameters(self):
         """
