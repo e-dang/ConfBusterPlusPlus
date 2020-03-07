@@ -9,6 +9,8 @@ from rdkit.Chem import AllChem
 
 import confbusterplusplus.utils as utils
 
+CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
+
 
 class ForceFieldOptimizer:
 
