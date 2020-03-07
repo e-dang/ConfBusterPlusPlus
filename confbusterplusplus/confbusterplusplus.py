@@ -124,8 +124,9 @@ class ConformerGenerator:
             self.embedder.embed(linear_mol_copy)
             energies = self.ff_optimizer.optimize(linear_mol_copy)
             self.structure_filter.filter(linear_mol_copy)
-            opt_linear_rotamers.extend(self.dihedral_optimizer.optimize_linear_rotamers(
-                linear_mol_copy, int(np.argmin(energies)), cleaved_atom1, cleaved_atom2, new_dihedrals))
+            for idx in np.argsort(energies):
+                opt_linear_rotamers.extend(self.dihedral_optimizer.optimize_linear_rotamers(
+                    linear_mol_copy, int(idx), cleaved_atom1, cleaved_atom2, new_dihedrals))
 
         for linear_rotamer in opt_linear_rotamers:
             linear_mol.AddConformer(linear_rotamer, assignId=True)
