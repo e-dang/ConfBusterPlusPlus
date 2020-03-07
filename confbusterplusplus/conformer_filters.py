@@ -4,6 +4,40 @@ from rdkit.Chem import AllChem
 import numpy as np
 
 
+def reset_ids(mol):
+    for i, conf in enumerate(mol.GetConformers()):
+        conf.SetId(i)
+
+
+class EnergyFilter:
+
+    def __init__(self, energy_diff):
+        self.energy_diff = energy_diff
+
+    def filter(self, mol, energies, min_energy=None):
+        if min_energy is None:
+            min_energy = np.min(energies)
+
+        for conf_id, energy in enumerate(list(energies)):
+            if energy > min_energy + self.energy_diff:
+                mol.RemoveConformer(conf_id)
+                energies.remove(energy)
+
+        reset_ids(mol)
+
+
+class StructureFilter:
+
+    def filter(self, mol):
+
+        smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
+        for conf_id in range(mol.GetNumConformers()):
+            if smiles != Chem.MolToSmiles(Chem.MolFromMolBlock(Chem.MolToMolBlock(Chem.RemoveHs(mol), confId=conf_id))):
+                mol.RemoveConformer(conf_id)
+
+        reset_ids(mol)
+
+
 class ConformerEvaluator:
 
     def __init__(self, energy_diff, min_rmsd, max_iters):
@@ -13,10 +47,9 @@ class ConformerEvaluator:
 
     def evaluate(self, mol, energies, opt_mol, opt_energies, min_energy):
         """
-        Helper function of generate() that determines if the conformers on mol are accepted in the final set of
-        conformers or are rejected based on energy difference from the minimum energy conformer and whether conformers
-        are greater than the RMSD threshold apart from each other. In the latter case, if they are not, then the lowest
-        energy conformer out of the two is kept.
+        Determines if the conformers on mol are accepted in the final set of conformers or are rejected based on energy
+        difference from the minimum energy conformer and whether conformers are greater than the RMSD threshold apart
+        from each other. In the latter case, if they are not, then the lowest energy conformer out of the two is kept.
 
         Args:
             mol (RDKit Mol): The molecule containing the candidate conformers.
