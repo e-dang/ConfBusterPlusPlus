@@ -142,3 +142,16 @@ def is_json_serializable(value):
         return True
     except TypeError:
         return False
+
+
+def terminate(message, code):
+    """
+    Helper function that terminates the process if command line argument validation fails.
+
+    Args:
+        message (str): The error message to print to the terminal.
+        code (int): The error code to exit with.
+    """
+
+    print(message)
+    exit(code)

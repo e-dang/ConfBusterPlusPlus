@@ -1,5 +1,6 @@
 
 from confbusterplusplus.optimizers import CC_BOND_DIST
+from confbusterplusplus.utils import terminate
 
 
 class ParameterValidator:
@@ -37,7 +38,7 @@ class ParameterValidator:
 
         if self.args.repeats_per_cut:
             if self.args.repeats_per_cut <= 0:
-                self._terminate('Error. The argument repeats_per_cut must be greater than 0.', 2)
+                terminate('Error. The argument repeats_per_cut must be greater than 0.', 2)
             elif self.args.repeats_per_cut > 10:
                 print(f'Warning - the larger repeats_per_cut is, the longer the conformational sampling process will '
                       f'take! Current value is {self.args.repeats_per_cut}.')
@@ -51,7 +52,7 @@ class ParameterValidator:
 
         if self.args.num_confs_genetic:
             if self.args.num_confs_genetic <= 0:
-                self._terminate('Error. The argument num_confs_genetic must be greater than 0.', 2)
+                terminate('Error. The argument num_confs_genetic must be greater than 0.', 2)
 
             self.params['num_confs_genetic'] = self.args.num_confs_genetic
 
@@ -62,7 +63,7 @@ class ParameterValidator:
 
         if self.args.num_confs_rotamer_search:
             if self.args.num_confs_rotamer_search <= 0:
-                self._terminate('Error. The argument num_confs_rotamer_search must be greater than 0.', 2)
+                terminate('Error. The argument num_confs_rotamer_search must be greater than 0.', 2)
 
             self.params['num_confs_rotamer_search'] = self.args.num_confs_rotamer_search
 
@@ -85,7 +86,7 @@ class ParameterValidator:
 
         if self.args.dielectric:
             if self.args.dielectric < 1:
-                self._terminate('Error. The argument dielectric must be greater than or equal to 1.', 2)
+                terminate('Error. The argument dielectric must be greater than or equal to 1.', 2)
 
             self.params['dielectric'] = self.args.dielectric
 
@@ -110,7 +111,7 @@ class ParameterValidator:
         try:
             if self.args.min_rmsd or int(self.args.min_rmsd) == 0:
                 if self.args.min_rmsd < 0:
-                    self._terminate('Error. The argument min_rmsd must be greater than or equal to 0.', 2)
+                    terminate('Error. The argument min_rmsd must be greater than or equal to 0.', 2)
                 elif self.args.min_rmsd > 1:
                     print('Warning - the higher the value of min_rmsd the less conformers you are likely to end up with. '
                           f'Current value is {self.args.min_rmsd}.')
@@ -127,7 +128,7 @@ class ParameterValidator:
 
         if self.args.energy_diff:
             if self.args.energy_diff <= 0:
-                self._terminate('Error. The argument energy_diff must be greater than 0.', 2)
+                terminate('Error. The argument energy_diff must be greater than 0.', 2)
             elif self.args.energy_diff < 5:
                 print(f'Warning - The lower the value for energy_diff the higher the chances of getting very few or 0 '
                       f'conformers without a decrease in runtime. Current value is {self.args.energy_diff}')
@@ -143,7 +144,7 @@ class ParameterValidator:
         # validate small_angle_gran
         if self.args.small_angle_gran:
             if self.args.small_angle_gran <= 0:
-                self._terminate('Error. The argument small_angle_gran must be greater than 0.', 2)
+                terminate('Error. The argument small_angle_gran must be greater than 0.', 2)
 
             self.params['small_angle_gran'] = self.args.small_angle_gran
         else:
@@ -152,7 +153,7 @@ class ParameterValidator:
         # validate large_angle_gran
         if self.args.large_angle_gran:
             if self.args.large_angle_gran <= 0:
-                self._terminate('Error. The argument large_angle_gran must be greater than 0.', 2)
+                terminate('Error. The argument large_angle_gran must be greater than 0.', 2)
 
             self.params['large_angle_gran'] = self.args.large_angle_gran
         else:
@@ -160,7 +161,7 @@ class ParameterValidator:
 
         # ensure large >= small
         if self.params['large_angle_gran'] < self.params['small_angle_gran']:
-            self._terminate('Error. The argument large_angle_gran must be at least as big as small_angle_gran.', 2)
+            terminate('Error. The argument large_angle_gran must be at least as big as small_angle_gran.', 2)
 
     def validate_clash_threshold(self):
         """
@@ -170,7 +171,7 @@ class ParameterValidator:
 
         if self.args.clash_threshold:
             if self.args.clash_threshold < 0:
-                self._terminate('Error. The argument clash_threshold must be greater than or equal to 0.', 2)
+                terminate('Error. The argument clash_threshold must be greater than or equal to 0.', 2)
             elif self.args.clash_threshold > 1:
                 print(f'Warning - higher values of clash_threshold may increase the runtimes because it may become '
                       f'hard or impossible to generate conformers with all atoms at least this far apart. Current '
@@ -189,14 +190,14 @@ class ParameterValidator:
         if self.args.distance_interval:
             minimum, maximum = self.args.distance_interval
             if minimum < 0 or minimum > CC_BOND_DIST:
-                self._terminate('Error. The lower bound of the argument distance_interval must be greater than or equal'
-                                ' to 0 and less than or equal to the approximate distance of a C-C bond (1.5 Å).', 2)
+                terminate('Error. The lower bound of the argument distance_interval must be greater than or equal'
+                          ' to 0 and less than or equal to the approximate distance of a C-C bond (1.5 Å).', 2)
             elif maximum < CC_BOND_DIST:
-                self._terminate('Error. The upper bound of the argument distance_interval must be greater than the '
-                                'approximate distance of a C-C bond (1.5 Å).', 2)
+                terminate('Error. The upper bound of the argument distance_interval must be greater than the '
+                          'approximate distance of a C-C bond (1.5 Å).', 2)
             elif maximum <= minimum:
-                self._terminate('Error. The upper bound of the argument distance_interval must be greater than the '
-                                'lower bound.', 2)
+                terminate('Error. The upper bound of the argument distance_interval must be greater than the '
+                          'lower bound.', 2)
             elif maximum - minimum < 1:
                 print(f'Warning - the smaller the difference in the lower and upper bounds of the argument '
                       f'distance_interval, the harder it becomes to find conformers, which can increase the runtime. '
@@ -215,7 +216,7 @@ class ParameterValidator:
 
         if self.args.num_threads:
             if self.args.num_threads < 0:
-                self._terminate('Error. The argument num_threads must be greater than or equal to 0.', 2)
+                terminate('Error. The argument num_threads must be greater than or equal to 0.', 2)
 
             self.params['num_threads'] = self.args.num_threads
 
@@ -227,7 +228,7 @@ class ParameterValidator:
 
         if self.args.max_iters:
             if self.args.max_iters <= 0:
-                self._terminate('Error. The argument max_iters must be greater than 0.', 2)
+                terminate('Error. The argument max_iters must be greater than 0.', 2)
             elif self.args.max_iters < 500:
                 print(f'Warning - the lower the value of max_iters the higher the chance that alignment and embedding '
                       'operations dont converge, which can reduce the quality of the conformers and produce false RMSD '
@@ -245,21 +246,9 @@ class ParameterValidator:
 
         if self.args.num_embed_tries:
             if self.args.num_embed_tries <= 0:
-                self._terminate('Error. The argument num_embed_tries must be greater than 0.', 2)
+                terminate('Error. The argument num_embed_tries must be greater than 0.', 2)
             elif self.args.num_embed_tries == 1:
                 print(f'Warning - the lower the value of num_embe_tries, the more likely the conformational search '
                       f'process is to fail early. Current value is {self.args.num_embed_tries}.')
 
             self.params['num_embed_tries'] = self.args.num_embed_tries
-
-    def _terminate(self, message, code):
-        """
-        Helper function that terminates the process if command line argument validation fails.
-
-        Args:
-            message (str): The error message to print to the terminal.
-            code (int): The error code to exit with.
-        """
-
-        print(message)
-        exit(code)
