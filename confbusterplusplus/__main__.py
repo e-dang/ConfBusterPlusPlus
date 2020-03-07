@@ -58,7 +58,9 @@ class Runner:
 
         self.args = args
 
-        self.factory = ConfBusterFactory(**vars(self.args))
+        kwargs = {key: value for key, value in vars(self.args).items() if value is not None}
+        self.factory = ConfBusterFactory(**kwargs)
+
         self.mols = []
         self.output_pdb = ''
         self.output_json = ''
