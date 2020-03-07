@@ -247,6 +247,8 @@ def main():
     parser.add_argument('--sdf', type=str, help='The filepath to the .sdf input file containing the macrocycles.')
     parser.add_argument('--repeats_per_cut', '-r', type=int, help='The number of times the linear oligomer is subjected'
                         ' to random embedding, the genetic algorithm, and subsequent rotamer search. Defaults to 5.')
+    parser.add_argument('--num_confs_embed', '-m', type=int, help='The number of conformers to generate when embedding.'
+                        ' Defaults to 50.')
     parser.add_argument('--num_confs_genetic', '-N', type=int, help='The number of conformers to generate using the '
                         'genetic algorithm. Defaults to 50.')
     parser.add_argument('--num_confs_rotamer_search', '-n', type=int, help='The maximum number of conformers to accept '
@@ -277,8 +279,10 @@ def main():
                         'energy minimizations, however more iterations are performed in the case of energy minimization'
                         ' if convergence is not reached by the end of these iterations (see optimize_confs() for '
                         'details). Defaults to 1000.')
-    parser.add_argument('--num_embed_tries', type=int, help='The number of tries to perform embedding with. Defaults '
-                        'to 5.')
+    parser.add_argument('--extra_iters', type=int, help='The number of extra iterations to perform when performing '
+                        'force field minimizations if the minimization did not converge. Defaults to 50.')
+    parser.add_argument('--min_macro_ring_size', type=int, help='The minimum number of atoms in a ring to be considered'
+                        ' a macrocycle. Defaults to 10.')
     parser.add_argument('--out', '-o', type=str, help='The .pdb output filepath. If file exists, numbers will be '
                         'appended to the file name to produce a unique filepath.')
 
