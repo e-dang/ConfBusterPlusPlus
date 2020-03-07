@@ -127,7 +127,6 @@ class OpenBabelGeneticAlgorithm:
 
 
 class DihedralOptimizer:
-    CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
 
     def __init__(self, num_confs, large_angle_gran, small_angle_gran, min_rmsd, clash_threshold, distance_interval, max_iters):
         self.num_confs = num_confs
@@ -166,8 +165,7 @@ class DihedralOptimizer:
             ini_dihedral1 = AllChem.GetDihedralDeg(linear_conf, dihedral1[0], dihedral1[1], dihedral1[2], dihedral1[3])
             ini_dihedral2 = AllChem.GetDihedralDeg(linear_conf, dihedral2[0], dihedral2[1], dihedral2[2], dihedral2[3])
             dist = self.get_distance(linear_conf, cleaved_atom1, cleaved_atom2)
-            if self.distance_interval[0] < dist < self.distance_interval[1]:
-                distances.append([dist, ini_dihedral1, dihedral1, ini_dihedral2, dihedral2])
+            distances.append([dist, ini_dihedral1, dihedral1, ini_dihedral2, dihedral2])
 
             angle1, angle2 = 0, 0
             while angle1 < 360:
@@ -175,8 +173,7 @@ class DihedralOptimizer:
                 while angle2 < 360:
                     AllChem.SetDihedralDeg(linear_conf, dihedral2[0], dihedral2[1], dihedral2[2], dihedral2[3], angle2)
                     dist = self.get_distance(linear_conf, cleaved_atom1, cleaved_atom2)
-                    if self.distance_interval[0] < dist < self.distance_interval[1]:
-                        distances.append([dist, angle1, dihedral1, angle2, dihedral2])
+                    distances.append([dist, angle1, dihedral1, angle2, dihedral2])
                     angle2 += self.large_angle_gran
                 angle1 += self.large_angle_gran
 
@@ -232,14 +229,14 @@ class DihedralOptimizer:
         """
 
         for dihedral in dihedrals:
-            best_dist = abs(self.get_distance(conformer, cleaved_atom1, cleaved_atom2) - self.CC_BOND_DIST)
+            best_dist = abs(self.get_distance(conformer, cleaved_atom1, cleaved_atom2) - CC_BOND_DIST)
             best_angle = AllChem.GetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3])
             angle = 0
             while angle < 360:
                 AllChem.SetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3], angle)
                 dist = self.get_distance(conformer, cleaved_atom1, cleaved_atom2)
-                if abs(dist - self.CC_BOND_DIST) < best_dist:
-                    best_dist = abs(dist - self.CC_BOND_DIST)
+                if abs(dist - CC_BOND_DIST) < best_dist:
+                    best_dist = abs(dist - CC_BOND_DIST)
                     best_angle = angle
                 angle += self.small_angle_gran
             AllChem.SetDihedralDeg(conformer, dihedral[0], dihedral[1], dihedral[2], dihedral[3], best_angle)
