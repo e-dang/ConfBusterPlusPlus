@@ -24,6 +24,7 @@ SOFTWARE.
 github - https://github.com/e-dang
 """
 
+import json
 import os
 from itertools import islice
 
@@ -133,3 +134,11 @@ def list_embed_params(embed_params):
             attributes[name] = getattr(embed_params, name)
 
     return attributes
+
+
+def is_json_serializable(value):
+    try:
+        json.dumps(value)
+        return True
+    except TypeError:
+        return False
