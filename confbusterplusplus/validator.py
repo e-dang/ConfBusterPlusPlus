@@ -16,6 +16,7 @@ class ParameterValidator:
         """
 
         self.validate_repeats_per_cut()
+        self.validate_num_confs_embed()
         self.validate_num_confs_genetic()
         self.validate_num_confs_rotamer_search()
         self.validate_force_field()
@@ -26,11 +27,13 @@ class ParameterValidator:
         self.validate_distance_interval()
         self.validate_num_threads()
         self.validate_max_iters()
+        self.validate_min_macro_ring_size()
+        self.validate_extra_iters()
 
     def validate_repeats_per_cut(self):
         """
         Ensures repeats_per_cut is greater than 0 and prints warning about longer runtimes if its
-        greater than 10, then fills self.params with the specified value.
+        greater than 10.
         """
 
         if self.params['repeats_per_cut'] <= 0:
@@ -40,9 +43,17 @@ class ParameterValidator:
             print(f'Warning - the larger repeats_per_cut is, the longer the conformational sampling process will '
                   f'take! Current value is {repeats}.')
 
+    def validate_num_confs_embed(self):
+        """
+        Ensures num_confs_genetic is greater than 0.
+        """
+
+        if self.params['num_confs_embed'] <= 0:
+            terminate('Error. The argument num_confs_embed must be greater than 0.', 2)
+
     def validate_num_confs_genetic(self):
         """
-        Ensures num_confs_genetic is greater than 0, then fills self.params with the specified value.
+        Ensures num_confs_genetic is greater than 0.
         """
 
         if self.params['num_confs_genetic'] <= 0:
@@ -50,7 +61,7 @@ class ParameterValidator:
 
     def validate_num_confs_rotamer_search(self):
         """
-        Ensures num_confs_rotamer_search is greater than 0, then fills self.params with the specified value.
+        Ensures num_confs_rotamer_search is greater than 0.
         """
 
         if self.params['num_confs_rotamer_search'] <= 0:
@@ -67,7 +78,7 @@ class ParameterValidator:
 
     def _validate_dielectric(self):
         """
-        Ensures dielectric is greater than or equal to 1, then fills self.params with the specified value.
+        Ensures dielectric is greater than or equal to 1.
         """
 
         if self.params['dielectric'] < 1:
@@ -97,7 +108,7 @@ class ParameterValidator:
     def validate_energy_diff(self):
         """
         Ensures energy_diff is greater than 0, and prints a warning about possibility of decreased number of conformers
-        if the value is less than 5, then fills self.params with the specified value.
+        if the value is less than 5.
         """
 
         if self.params['energy_diff']:
@@ -111,7 +122,7 @@ class ParameterValidator:
     def validate_angle_gran(self):
         """
         Ensures that both small_angle_gran and large_angle_gran are both greater than 0, and that large_angle_gran is at
-        least as big as small_angle_gran, then fills self.params with the specified values.
+        least as big as small_angle_grans.
         """
 
         if self.params['small_angle_gran'] <= 0:
@@ -126,7 +137,7 @@ class ParameterValidator:
     def validate_clash_threshold(self):
         """
         Ensures that the clash_threshold is greater than or equal to 0, and prints a warning if the clash threshold is
-        greater than 1, then fills self.params with the specified value.
+        greater than 1.
         """
 
         if self.params['clash_threshold'] < 0:
@@ -166,7 +177,7 @@ class ParameterValidator:
 
     def validate_num_threads(self):
         """
-        Ensures that num_threads is greater than or equal to 0, then fills self.params with the specified value.
+        Ensures that num_threads is greater than or equal to 0.
         """
 
         if self.params['num_threads'] < 0:
@@ -175,7 +186,7 @@ class ParameterValidator:
     def validate_max_iters(self):
         """
         Ensures that max_iters is greater than 0, and prints a warning about how lower values can lead to lower
-        probability of convergence if max_iters is less than 500, then fills self.params with the specified value.
+        probability of convergence if max_iters is less than 500.
         """
 
         if self.params['max_iters'] <= 0:
@@ -186,3 +197,19 @@ class ParameterValidator:
                   'operations dont converge, which can reduce the quality of the conformers and produce false RMSD '
                   'values. It may also increase the runtime due to slower energy minimizations. Current value is '
                   f'{max_iters}.')
+
+    def validate_min_macro_ring_size(self):
+        """
+        Validate the minimum macrocycle ring size. Must be greater than 6.
+        """
+
+        if self.params['min_macro_ring_size'] <= 6:
+            terminate('Error. Rings this small aren\'t macrocycles.', 2)
+
+    def validate_extra_iters(self):
+        """
+        Validate the extra iters parameter. Must be greater than or equal to 1.
+        """
+
+        if self.params['extra_iters'] <= 0:
+            terminate('Error. Must have a positive number of extra iters.', 2)
