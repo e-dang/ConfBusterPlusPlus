@@ -103,7 +103,7 @@ class ConformerGenerator:
 
         # align conformers
         rmsd = self.aligner.align_global(macrocycle)
-        ring_rmsd = self.aligner.align_specific(macrocycle, ring_atoms)
+        ring_rmsd = self.aligner.align_atoms(macrocycle, ring_atoms)
 
         return NewConformer(macrocycle, energies, rmsd, ring_rmsd, len(cleavable_bonds), len(ring_atoms))
 
