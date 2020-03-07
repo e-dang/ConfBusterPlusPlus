@@ -2,7 +2,7 @@ import numpy as np
 from rdkit.Chem import AllChem
 
 
-class Optimizer:
+class ForceFieldOptimizer:
 
     def __init__(self, force_field, dielectric, max_iters, extra_iters, num_threads):
         self.force_field = force_field
@@ -11,7 +11,7 @@ class Optimizer:
         self.extra_iters = extra_iters
         self.num_threads = num_threads
 
-    def optimize_conformers(self, mol):
+    def optimize(self, mol):
         """
         Performs energy minimization of the given molecule, which must have been embedded first.
 
