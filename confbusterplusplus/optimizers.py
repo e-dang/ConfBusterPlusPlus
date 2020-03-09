@@ -12,7 +12,7 @@ import confbusterplusplus.utils as utils
 CC_BOND_DIST = 1.5  # approximate length of a carbon-carbon bond in angstroms
 
 
-def calc_distance(self, mol, atom1, atom2):
+def calc_distance(mol, atom1, atom2):
     """
     Calculates the distance between two atoms on a given molecule.
 
@@ -28,6 +28,12 @@ def calc_distance(self, mol, atom1, atom2):
     atom1_position = mol.GetAtomPosition(atom1)
     atom2_position = mol.GetAtomPosition(atom2)
     return atom1_position.Distance(atom2_position)
+
+
+def is_clashing(mol, conf_id, clash_threshold):
+    matrix = Chem.Get3DDistanceMatrix(mol, confId=conf_id).flatten()
+    matrix = matrix[matrix > 0]
+    return sum(matrix < clash_threshold) != 0
 
 
 class ForceFieldOptimizer:
@@ -50,11 +56,7 @@ class ForceFieldOptimizer:
             list: A list of the energies, one for each conformer on the molecule.
         """
 
-        mol_props = AllChem.MMFFGetMoleculeProperties(mol)
-        mol_props.SetMMFFVariant(self.force_field)
-        mol_props.SetMMFFDielectricConstant(self.dielectric)
-        force_fields = list(map(lambda x: AllChem.MMFFGetMoleculeForceField(
-            mol, mol_props, confId=x, ignoreInterfragInteractions=False), range(mol.GetNumConformers())))
+        force_fields = self.get_force_fields(mol)
 
         convergence, energy = zip(*AllChem.MMFFOptimizeMoleculeConfs(mol, mmffVariant=self.force_field,
                                                                      maxIters=self.max_iters,
@@ -66,6 +68,17 @@ class ForceFieldOptimizer:
             while not convergence[non_converged_id]:
                 convergence[non_converged_id] = force_fields[non_converged_id].Minimize(self.extra_iters)
                 energy[non_converged_id] = force_fields[non_converged_id].CalcEnergy()
+
+        return self.calc_energies(force_fields)
+
+    def get_force_fields(self, mol):
+        mol_props = AllChem.MMFFGetMoleculeProperties(mol)
+        mol_props.SetMMFFVariant(self.force_field)
+        mol_props.SetMMFFDielectricConstant(self.dielectric)
+        return list(map(lambda x: AllChem.MMFFGetMoleculeForceField(
+            mol, mol_props, confId=x, ignoreInterfragInteractions=False), range(mol.GetNumConformers())))
+
+    def calc_energies(self, force_fields):
 
         return list(map(lambda x: x.CalcEnergy(), force_fields))
 
@@ -214,11 +227,7 @@ class DihedralOptimizer:
                                    [1], distance[4][2], distance[4][3], distance[3])
 
             # if no clashes are detected optimize continue optimization
-            matrix = Chem.Get3DDistanceMatrix(linear_mol, confId=conf_id).flatten()
-            matrix = matrix[matrix > 0]
-            if sum(matrix < self.clash_threshold) == 0:
-
-                # optimize dihedrals
+            if not is_clashing(linear_mol, conf_id, self.clash_threshold):
                 self.optimize_dihedrals(linear_conf, cleaved_atom1, cleaved_atom2, dihedrals['cleaved'])
                 self.optimize_dihedrals(linear_conf, cleaved_atom1, cleaved_atom2, dihedrals['cleaved_and_Hs'])
 

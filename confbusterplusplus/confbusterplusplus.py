@@ -92,6 +92,7 @@ class ConformerGenerator:
                     continue
 
                 min_energy = self.get_lowest_energy(energies, min_energy)
+                Chem.SanitizeMol(macro_mol)
                 self.evaluator.evaluate(macro_mol, energies, storage_mol, opt_energies, min_energy)
 
         # add conformers to opt_macrocycle in order of increasing energy
@@ -122,11 +123,11 @@ class ConformerGenerator:
         for _ in range(self.repeats_per_cut):
             linear_mol_copy = deepcopy(linear_mol)
             self.embedder.embed(linear_mol_copy)
-            energies = self.ff_optimizer.optimize(linear_mol_copy)
+            self.ff_optimizer.optimize(linear_mol_copy)
             self.structure_filter.filter(linear_mol_copy)
-            for idx in np.argsort(energies):
+            for idx in range(linear_mol_copy.GetNumConformers()):
                 opt_linear_rotamers.extend(self.dihedral_optimizer.optimize_linear_rotamers(
-                    linear_mol_copy, int(idx), cleaved_atom1, cleaved_atom2, new_dihedrals))
+                    linear_mol_copy, idx, cleaved_atom1, cleaved_atom2, new_dihedrals))
 
         for linear_rotamer in opt_linear_rotamers:
             linear_mol.AddConformer(linear_rotamer, assignId=True)
@@ -135,15 +136,14 @@ class ConformerGenerator:
 
     def optimize_sidechains(self, macrocycle):
         energies = self.ff_optimizer.optimize(macrocycle)
-        self.structure_filter.filter(macrocycle)
         self.energy_filter.filter(macrocycle, energies)
+        self.structure_filter.filter(macrocycle)
         macrocycle = self.genetic_algorithm.run(macrocycle)
         energies = self.ff_optimizer.optimize(macrocycle)
-        self.structure_filter.filter(macrocycle)
         self.energy_filter.filter(macrocycle, energies)
-        Chem.SanitizeMol(macrocycle)
+        self.structure_filter.filter(macrocycle)
 
-        return macrocycle, energies
+        return macrocycle, self.ff_optimizer.calc_energies(self.ff_optimizer.get_force_fields(macrocycle))
 
     def get_lowest_energy(self, energies, min_energy=None):
         """
