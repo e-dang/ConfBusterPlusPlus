@@ -88,12 +88,11 @@ class ConformerGenerator:
 
                 try:
                     macro_mol, energies = self.optimize_sidechains(macro_mol)
+                    min_energy = self.get_lowest_energy(energies, min_energy)
+                    Chem.SanitizeMol(macro_mol)
+                    self.evaluator.evaluate(macro_mol, energies, storage_mol, opt_energies, min_energy)
                 except (IndexError, ValueError):  # number of conformers after filtering is 0
                     continue
-
-                min_energy = self.get_lowest_energy(energies, min_energy)
-                Chem.SanitizeMol(macro_mol)
-                self.evaluator.evaluate(macro_mol, energies, storage_mol, opt_energies, min_energy)
 
         # add conformers to opt_macrocycle in order of increasing energy
         energies, rmsd, ring_rmsd = [], [], []
