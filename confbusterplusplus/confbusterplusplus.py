@@ -72,7 +72,6 @@ class ConformerGenerator:
         while not opt_energies:
             min_energy = None
             for i, bond in enumerate(cleavable_bonds):
-                print(f'{i} of {len(cleavable_bonds)}')
                 linear_mol = Chem.AddHs(self.bond_cleaver.cleave_bond(macrocycle, bond))
 
                 if len(self.feature_identifier.get_ring_atoms(linear_mol)) != 0:
