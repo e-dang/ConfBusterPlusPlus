@@ -28,9 +28,11 @@ class EnergyFilter:
 
 class StructureFilter:
 
-    def filter(self, mol):
+    def filter(self, mol, smiles=None):
 
-        smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
+        if smiles is None:
+            smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
+
         for conf_id in range(mol.GetNumConformers()):
             if smiles != Chem.MolToSmiles(Chem.MolFromMolBlock(Chem.MolToMolBlock(Chem.RemoveHs(mol), confId=conf_id))):
                 mol.RemoveConformer(conf_id)
