@@ -61,6 +61,7 @@ class ConformerGenerator:
         self.repeats_per_cut = repeats_per_cut
 
     def generate(self, macrocycle):
+        self.smiles = Chem.MolToSmiles(macrocycle)
         storage_mol = Chem.AddHs(macrocycle)
 
         ring_atoms, cleavable_bonds, dihedral_atoms = self.get_features(macrocycle)
@@ -71,7 +72,7 @@ class ConformerGenerator:
         opt_energies = {}
         while not opt_energies:
             min_energy = None
-            for i, bond in enumerate(cleavable_bonds):
+            for bond in cleavable_bonds:
                 linear_mol = Chem.AddHs(self.bond_cleaver.cleave_bond(macrocycle, bond))
 
                 if len(self.feature_identifier.get_ring_atoms(linear_mol)) != 0:
@@ -133,13 +134,15 @@ class ConformerGenerator:
         self.structure_filter.filter(linear_mol)
 
     def optimize_sidechains(self, macrocycle):
-        energies = self.ff_optimizer.optimize(macrocycle)
-        self.energy_filter.filter(macrocycle, energies)
-        self.structure_filter.filter(macrocycle)
+        self.ff_optimizer.optimize(macrocycle)
+        self.structure_filter.filter(macrocycle, self.smiles)
+        self.energy_filter.filter(macrocycle, self.ff_optimizer.calc_energies(
+            self.ff_optimizer.get_force_fields(macrocycle)))
         macrocycle = self.genetic_algorithm.run(macrocycle)
-        energies = self.ff_optimizer.optimize(macrocycle)
-        self.energy_filter.filter(macrocycle, energies)
-        self.structure_filter.filter(macrocycle)
+        self.ff_optimizer.optimize(macrocycle)
+        self.structure_filter.filter(macrocycle, self.smiles)
+        self.energy_filter.filter(macrocycle, self.ff_optimizer.calc_energies(
+            self.ff_optimizer.get_force_fields(macrocycle)))
 
         return macrocycle, self.ff_optimizer.calc_energies(self.ff_optimizer.get_force_fields(macrocycle))
 
