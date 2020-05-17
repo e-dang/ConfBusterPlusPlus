@@ -12,7 +12,7 @@ from confbusterplusplus.confbusterplusplus import ConformerGenerator
 from confbusterplusplus.conformer_filters import (ConformerEvaluator,
                                                   EnergyFilter,
                                                   StructureFilter)
-from confbusterplusplus.embedder import MultiEmbedder
+from confbusterplusplus.embedder import MultiEmbedder, EmbedParameters
 from confbusterplusplus.feature_identifier import FeatureIdentifier
 from confbusterplusplus.optimizers import (DihedralOptimizer,
                                            ForceFieldOptimizer,
@@ -146,10 +146,8 @@ class ConfBusterFactory:
         """
 
         if embed_params is None:
-            embed_params = AllChem.ETKDGv2()
-            embed_params.numThreads = self.num_threads
-            embed_params.maxIterations = self.max_iters
-            embed_params.randomSeed = int(time())
+            embed_params = EmbedParameters(numThreads=self.num_threads,
+                                           maxIterations=self.max_iters, randomSeed=int(time()))
 
         return embed_params
 
