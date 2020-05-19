@@ -103,7 +103,7 @@ class ConfBusterFactory:
         for key, value in list(self.__dict__.items()):
             if key[0] != '_':  # non-private member variable
                 if key == 'embed_params':
-                    member_vars[key] = utils.list_embed_params(value)
+                    member_vars[key] = utils.list_embed_params(value.params)
                 elif utils.is_json_serializable(value):
                     member_vars[key] = value
 
