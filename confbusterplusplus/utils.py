@@ -131,7 +131,9 @@ def list_embed_params(embed_params):
     attributes = {}
     for name in dir(embed_params):
         if '__' not in name:  # not a python related attribute
-            attributes[name] = getattr(embed_params, name)
+            attr = getattr(embed_params, name)
+            if not callable(attr):
+                attributes[name] = attr
 
     return attributes
 
