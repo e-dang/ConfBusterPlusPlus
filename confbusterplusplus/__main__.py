@@ -87,9 +87,8 @@ class Runner:
                 start = time()
                 confs, energies, rmsd, ring_rmsd, num_cleavable_bonds, num_ring_atoms = generator.generate(mol)
                 finish = time() - start
-            except exceptions.InvalidMolecule:
-                print('Failed to find ring with at least {generator.MIN_MACRO_RING_SIZE} atoms in molecule '
-                      f'{Chem.MolToSmiles(mol)}.')
+            except exceptions.InvalidMolecule as err:
+                print(err)
                 continue
 
             params = self.factory.get_parameters()

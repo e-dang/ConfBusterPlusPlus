@@ -27,7 +27,7 @@ github - https://github.com/e-dang
 from collections import namedtuple
 from copy import deepcopy
 
-import numpy as np
+from itertools import chain
 from rdkit import Chem
 
 import confbusterplusplus.exceptions as exceptions
@@ -67,7 +67,10 @@ class ConformerGenerator:
         ring_atoms, cleavable_bonds, dihedral_atoms = self.get_features(macrocycle)
 
         if len(ring_atoms) == 0:
-            exceptions.InvalidMolecule('No macrocyclic rings were found in the given molecule.')
+            raise exceptions.InvalidMolecule('No macrocyclic rings were found in the given molecule.')
+
+        if '?' in chain.from_iterable(Chem.FindMolChiralCenters(macrocycle, includeUnassigned=True)):
+            raise exceptions.InvalidMolecule('Not all chiral centers have been assigned in this macrocycle!')
 
         opt_energies = {}
         while not opt_energies:
