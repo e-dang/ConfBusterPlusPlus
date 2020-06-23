@@ -18,13 +18,11 @@ from confbusterplusplus.optimizers import (DihedralOptimizer,
                                            ForceFieldOptimizer,
                                            OpenBabelGeneticAlgorithm)
 
-TMP_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'tmp')
-
 
 class ConfBusterFactory:
 
-    MOL_FILE = os.path.join(TMP_DIR, 'conf_macrocycle.sdf')
-    GENETIC_FILE = os.path.join(TMP_DIR, 'genetic_results.sdf')
+    MOL_FILE = os.path.join(os.environ['TMPDIR'], 'conf_macrocycle.sdf')
+    GENETIC_FILE = os.path.join(os.environ['TMPDIR'], 'genetic_results.sdf')
 
     def __init__(self, repeats_per_cut=5, num_confs_embed=50, num_confs_genetic=50, num_confs_rotamer_search=5, force_field='MMFF94s',
                  dielectric=1.0, score='energy', min_rmsd=0.5, energy_diff=5, embed_params=None, small_angle_gran=5,
