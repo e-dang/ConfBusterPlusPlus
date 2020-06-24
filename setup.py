@@ -13,18 +13,12 @@ def read(fname):
 
 setup(
     name="confbusterplusplus",
-    version="1.2.0",
+    version="1.0.0",
     author="Eric Dang",
     description=("A macrocycle conformational sampling tool."),
     license="MIT",
     keywords="macrocycle conformer sampling",
     url="https://github.com/e-dang/ConfBusterPlusPlus.git",
     packages=find_packages(),
-    long_description=read('README.md'),
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Topic :: Utilities",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.6"
-    ],
+    long_description=read('README.md')
 )
