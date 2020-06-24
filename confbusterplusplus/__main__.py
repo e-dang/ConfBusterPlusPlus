@@ -241,7 +241,7 @@ def main():
                                      'arguments are optional. Program exits with code 0 upon a successful run, code 1 '
                                      'when there an invalid argument is given to an I/O option, and code 2 when there '
                                      'is an invalid given to any other type of option. Written by Eric Dang, github - '
-                                     'https://github.com/e-dang')
+                                     'https://github.com/e-dang/ConfBusterPlusPlus.git')
 
     parser.add_argument('--smiles', type=str, nargs='*', help='The SMILES string(s) of the macrocycle(s) separated by a'
                         ' single space.')
